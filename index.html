@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parkera i Göteborg</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #14171a;
+    --panel: #1d2226;
+    --line: #2a3036;
+    --text: #e7e9ea;
+    --muted: #8a9198;
+    --accent: #4fb3a9;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+  }
+  header p { margin: 0; font-size: 12px; color: var(--muted); }
+  #status { font-size: 12px; color: var(--muted); }
+  #layout {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  #sidebar {
+    width: 240px;
+    padding: 12px;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  #sidebar h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin: 14px 0 6px;
+  }
+  #sidebar h2:first-child { margin-top: 0; }
+  .taxa-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 2px;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .taxa-row:hover { background: rgba(255,255,255,0.04); }
+  .taxa-row input { accent-color: var(--accent); }
+  .swatch {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .taxa-cost { margin-left: auto; color: var(--muted); font-size: 11px; }
+  #map { flex: 1; }
+  .btnrow { display: flex; gap: 6px; margin-top: 10px; }
+  .btnrow button {
+    flex: 1;
+    background: var(--line);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .btnrow button:hover { background: #363d44; }
+  .leaflet-popup-content-wrapper {
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 8px;
+  }
+  .leaflet-popup-tip { background: var(--panel); }
+  .popup-title { font-weight: 600; margin: 0 0 4px; }
+  .popup-taxa { color: var(--accent); font-weight: 600; }
+  .popup-cost { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
+  .directions-link {
+    display: inline-block;
+    margin-top: 6px;
+    margin-right: 8px;
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .directions-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Parkera i Göteborg</h1>
+    <p>Sök gatuparkering efter taxa. Klicka en punkt för vägbeskrivning.</p>
+  </div>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <button id="locate-btn" style="background:var(--accent); color:#0b1211; border:none; border-radius:6px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer;">📍 Hitta mig</button>
+    <div id="status">Hämtar data…</div>
+  </div>
+</header>
+
+<div id="layout">
+  <div id="sidebar">
+    <h2>Visa</h2>
+    <label class="taxa-row"><input type="checkbox" id="toggle-free" checked> <span class="swatch" style="background:#4fb3a9"></span> Gratis (tidsparkering)</label>
+
+    <h2>Taxa (avgift)</h2>
+    <div id="taxa-list"></div>
+
+    <div class="btnrow">
+      <button id="select-all">Alla</button>
+      <button id="select-none">Ingen</button>
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<script>
+// ---- Konfiguration ----
+const APPID = "d5d377dd-ec35-4395-b965-e1da3920366b";
+const BASE = "https://data.goteborg.se/ParkingService/v2.3/";
+
+// Färg per taxa. Dyrare taxa = varmare färg. Taxa A (korttid) får egen färg.
+const TAXA_COLORS = {
+  "1":  "#e94f4f",
+  "2":  "#e97a4f",
+  "3":  "#e9a04f",
+  "4":  "#e9c04f",
+  "5":  "#cbd94f",
+  "6":  "#8fd94f",
+  "7":  "#4fd97a",
+  "8":  "#4fd9c0",
+  "9":  "#4fc0d9",
+  "12": "#b04fe9",
+  "22": "#8f4fe9",
+  "24": "#e94fbb",
+  "62": "#4f7ae9",
+  "A":  "#f2f24f"
+};
+const TAXA_LABELS = {
+  "1": "Taxa 1", "2": "Taxa 2", "3": "Taxa 3", "4": "Taxa 4", "5": "Taxa 5",
+  "6": "Taxa 6", "7": "Taxa 7", "8": "Taxa 8", "9": "Taxa 9",
+  "12": "Taxa 12 (korttid)", "22": "Taxa 22 (korttid)", "24": "Taxa 24 (korttid)",
+  "62": "Taxa 62 (korttid)", "A": "Taxa A (30 min)"
+};
+
+const map = L.map('map', { zoomControl: true }).setView([57.7089, 11.9746], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap-bidragsgivare',
+  maxZoom: 19
+}).addTo(map);
+
+const layerGroups = {};   // taxa -> L.LayerGroup
+const freeGroup = L.layerGroup().addTo(map);
+let allTollFeatures = [];
+let allTimeFeatures = [];
+
+function extractTaxa(chargeStr) {
+  if (!chargeStr) return null;
+  const m = chargeStr.match(/Taxa\s+(\w+)/i);
+  return m ? m[1].toUpperCase() : null;
+}
+
+function makeIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:1.5px solid rgba(0,0,0,0.4);"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+  });
+}
+
+function directionsLinks(lat, lng) {
+  const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  const waze = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
+  return `<a class="directions-link" href="${gmaps}" target="_blank" rel="noopener">Google Maps →</a>
+          <a class="directions-link" href="${waze}" target="_blank" rel="noopener">Waze →</a>`;
+}
+
+function addTollMarker(p) {
+  const taxa = extractTaxa(p.ParkingCharge);
+  if (!taxa || !p.Lat || !p.Long) return;
+  if (!layerGroups[taxa]) layerGroups[taxa] = L.layerGroup();
+  const color = TAXA_COLORS[taxa] || "#999";
+  const marker = L.marker([p.Lat, p.Long], { icon: makeIcon(color) });
+  const spaces = p.ParkingSpaces ? `${p.ParkingSpaces} platser` : "";
+  marker.bindPopup(`
+    <p class="popup-title">${p.Name || "Okänd gata"}</p>
+    <p class="popup-taxa">${TAXA_LABELS[taxa] || ("Taxa " + taxa)}</p>
+    <p class="popup-cost">${p.ParkingCost || ""}${spaces ? " · " + spaces : ""}</p>
+    ${directionsLinks(p.Lat, p.Long)}
+  `);
+  marker.addTo(layerGroups[taxa]);
+}
+
+function addFreeMarker(p) {
+  if (!p.Lat || !p.Long) return;
+  const marker = L.marker([p.Lat, p.Long], { icon: makeIcon("#4fb3a9") });
+  const spaces = p.ParkingSpaces ? `${p.ParkingSpaces} platser` : "";
+  marker.bindPopup(`
+    <p class="popup-title">${p.Name || "Okänd gata"}</p>
+    <p class="popup-taxa" style="color:#4fb3a9;">Gratis (tidsbegränsad)</p>
+    <p class="popup-cost">${p.MaxParkingTime ? "Max " + p.MaxParkingTime : ""}${spaces ? " · " + spaces : ""}</p>
+    ${directionsLinks(p.Lat, p.Long)}
+  `);
+  marker.addTo(freeGroup);
+}
+
+function buildSidebar() {
+  const presentTaxa = Object.keys(layerGroups).sort((a, b) => {
+    const an = parseInt(a), bn = parseInt(b);
+    if (isNaN(an) && isNaN(bn)) return a.localeCompare(b);
+    if (isNaN(an)) return 1;
+    if (isNaN(bn)) return -1;
+    return an - bn;
+  });
+  const list = document.getElementById('taxa-list');
+  list.innerHTML = "";
+  presentTaxa.forEach(taxa => {
+    const color = TAXA_COLORS[taxa] || "#999";
+    const row = document.createElement('label');
+    row.className = 'taxa-row';
+    row.innerHTML = `
+      <input type="checkbox" checked data-taxa="${taxa}">
+      <span class="swatch" style="background:${color}"></span>
+      <span>${TAXA_LABELS[taxa] || ("Taxa " + taxa)}</span>
+    `;
+    const checkbox = row.querySelector('input');
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) map.addLayer(layerGroups[taxa]);
+      else map.removeLayer(layerGroups[taxa]);
+    });
+    list.appendChild(row);
+    map.addLayer(layerGroups[taxa]);
+  });
+
+  document.getElementById('select-all').addEventListener('click', () => {
+    document.querySelectorAll('#taxa-list input').forEach(cb => { cb.checked = true; map.addLayer(layerGroups[cb.dataset.taxa]); });
+  });
+  document.getElementById('select-none').addEventListener('click', () => {
+    document.querySelectorAll('#taxa-list input').forEach(cb => { cb.checked = false; map.removeLayer(layerGroups[cb.dataset.taxa]); });
+  });
+  document.getElementById('toggle-free').addEventListener('change', (e) => {
+    if (e.target.checked) map.addLayer(freeGroup);
+    else map.removeLayer(freeGroup);
+  });
+}
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// ---- Hitta mig ----
+let userMarker = null;
+const userIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:16px;height:16px;border-radius:50%;background:#4a90e2;border:2px solid white;box-shadow:0 0 0 4px rgba(74,144,226,0.35);"></div>`,
+  iconSize: [16, 16],
+  iconAnchor: [8, 8]
+});
+
+document.getElementById('locate-btn').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    setStatus("Platsåtkomst stöds inte i den här webbläsaren");
+    return;
+  }
+  setStatus("Hämtar din position…");
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      if (userMarker) map.removeLayer(userMarker);
+      userMarker = L.marker([latitude, longitude], { icon: userIcon, zIndexOffset: 1000 })
+        .bindPopup("Du är ungefär här")
+        .addTo(map);
+      map.setView([latitude, longitude], 16);
+      setStatus("Position hittad");
+    },
+    (err) => {
+      let msg = "Kunde inte hämta position";
+      if (err.code === err.PERMISSION_DENIED) msg = "Platsåtkomst nekad — tillåt i webbläsarens inställningar";
+      setStatus(msg);
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+
+// JSONP-laddning, eftersom API:et sannolikt inte sätter CORS-headers för fetch
+let pendingLoads = 0;
+function jsonp(url, callbackName, onData, onError) {
+  pendingLoads++;
+  window[callbackName] = function(data) {
+    onData(data);
+    delete window[callbackName];
+    script.remove();
+    pendingLoads--;
+    if (pendingLoads === 0) finishLoad();
+  };
+  const script = document.createElement('script');
+  script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+  script.onerror = () => {
+    pendingLoads--;
+    onError && onError();
+    if (pendingLoads === 0) finishLoad();
+  };
+  document.body.appendChild(script);
+}
+
+function finishLoad() {
+  buildSidebar();
+  const total = allTollFeatures.length + allTimeFeatures.length;
+  setStatus(`${total} parkeringar laddade`);
+}
+
+setStatus("Hämtar avgiftsbelagd parkering…");
+jsonp(
+  `${BASE}PublicTollParkings/${APPID}?format=JSON`,
+  'onToll',
+  (data) => {
+    allTollFeatures = Array.isArray(data) ? data : [];
+    allTollFeatures.forEach(addTollMarker);
+  },
+  () => setStatus("Kunde inte hämta avgiftsparkering")
+);
+
+jsonp(
+  `${BASE}PublicTimeParkings/${APPID}?format=JSON`,
+  'onTime',
+  (data) => {
+    allTimeFeatures = Array.isArray(data) ? data : [];
+    allTimeFeatures.forEach(addFreeMarker);
+  },
+  () => setStatus("Kunde inte hämta gratisparkering")
+);
+</script>
+</body>
+</html>
