@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Parkera i Göteborg</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root {
+    --bg: #10141a;
+    --panel: #1a2029;
+    --panel-2: #212936;
+    --text: #eef1f5;
+    --text-dim: #8b97a5;
+    --border: #2a3340;
+    --accent: #3b82f6;
+    --taxa-1: #ef4444;
+    --taxa-2: #ec4899;
+    --taxa-3: #6366f1;
+    --taxa-4: #10b981;
+    --taxa-5: #84cc16;
+    --taxa-6: #f59e0b;
+    --taxa-7: #06b6d4;
+    --taxa-8: #a855f7;
+    --taxa-9: #f43f5e;
+    --free: #10b981;
+    --shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+  body.light-theme {
+    --bg: #f3f4f6;
+    --panel: #ffffff;
+    --panel-2: #f7f8fa;
+    --text: #14181f;
+    --text-dim: #6b7480;
+    --border: #e5e7eb;
+    --shadow: 0 8px 24px rgba(20,24,31,0.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden;
+    position: fixed;
+    top: 0; left: 0;
+    overscroll-behavior: none;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  #app { position: relative; width: 100%; height: 100vh; height: 100dvh; }
+  #map { position: absolute; inset: 0; }
+
+  /* ---- Topbar: sök (går ända ut till vänsterkanten) ---- */
+  #topbar {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 600;
+    padding: 12px; display: flex; gap: 8px;
+  }
+  #search-wrap {
+    position: relative;
+    flex: 1; height: 44px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    box-shadow: var(--shadow);
+    display: flex; align-items: center; padding: 0 12px;
+  }
+  #search-wrap input {
+    flex: 1; border: none; background: transparent; color: var(--text);
+    font-size: 16px; padding: 11px 44px 11px 8px; outline: none;
+    caret-color: #ffffff;
+  }
+  #search-wrap input:focus { caret-color: #ffffff; }
+  #search-wrap input::placeholder { color: var(--text-dim); }
+  /* Placerad absolut så den kan vara större än fältet (och "titta ut" ovanför/under) utan att
+     påverka layouten eller trycka undan Hitta mig-knappen. Svart/vit beroende på tema. */
+  #search-clear {
+    display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    width: 32px; height: 32px; border-radius: 50%;
+    background: #000000; color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+    font-size: 15px; align-items: center; justify-content: center; z-index: 2;
+  }
+  #search-clear.show { display: flex; }
+  body.light-theme #search-clear { background: #ffffff; color: #000000; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+
+  #search-suggestions {
+    position: absolute; top: 68px; left: 68px; right: 62px; z-index: 610;
+    background: #fff8dc; color: #14171a;
+    border-radius: 13px; box-shadow: var(--shadow);
+    max-height: 55vh; overflow-y: auto; display: none;
+  }
+  #search-suggestions.show { display: block; }
+  .suggestion-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px; border-bottom: 1px solid #eceef1;
+    font-size: 13.5px;
+  }
+  .suggestion-row:last-child { border-bottom: none; }
+  .suggestion-row:active { background: rgba(0,0,0,0.08); }
+  .suggestion-tag {
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 6px; flex: 0 0 auto;
+  }
+  .suggestion-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #theme-toggle {
+    width: 40px; height: 40px; flex: 0 0 auto;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  #map-toggle {
+    width: 40px; height: 40px; flex: 0 0 auto;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  #theme-row {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);
+    font-size: 13px; font-weight: 600;
+  }
+  #theme-row #loaded-count { flex: 1; min-width: 0; }
+
+  /* ---- Panel: slidear in från sidan, docked under topbaren ---- */
+  /* Fliken är ett fysiskt barn till panelen och ärver därför exakt samma transform/rörelse - garanterat klistrad, ingen separat beräkning som kan hamna fel */
+  #edge-tab {
+    position: absolute; right: -42px;
+    /* Centrerad mot HELA skärmens höjd (50dvh), omräknat till panelens lokala koordinater eftersom panelen själv börjar 68px ner */
+    top: calc(50dvh - 68px); transform: translateY(-50%);
+    z-index: 605;
+    width: 42px; height: 68px;
+    background: #000000;
+    border-radius: 0 14px 14px 0;
+    box-shadow: var(--shadow);
+    font-size: 18px; color: white;
+  }
+  body.light-theme #edge-tab { background: #ffffff; color: #000000; }
+  /* Två överlappande pilar som korsfejdar mot slutet av glidningen, istället för att bytas ut abrupt */
+  .tab-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.18s ease 0.32s;
+  }
+  .icon-open { opacity: 1; }
+  .icon-close { opacity: 0; }
+  #panel-wrap.open #edge-tab .icon-open { opacity: 0; }
+  #panel-wrap.open #edge-tab .icon-close { opacity: 1; }
+
+  #panel-wrap {
+    position: absolute; top: 68px; left: 12px; z-index: 590;
+    width: min(86%, 360px);
+    max-height: calc(100vh - 84px);
+    max-height: calc(100dvh - 84px);
+    /* Stängt läge: panelen skjuts så långt åt vänster att bara fliken (som sitter fast på dess högerkant) syns kvar vid skärmens vänsterkant */
+    transform: translateX(calc(-100% - 12px));
+    transition: transform 0.5s cubic-bezier(0.45, 0, 0.2, 1);
+  }
+  #panel-wrap.open { transform: translateX(0); }
+  #panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    max-height: calc(100vh - 84px);
+    max-height: calc(100dvh - 84px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding: 4px 14px 14px 14px;
+    scrollbar-color: rgba(255,255,255,0.5) transparent;
+  }
+  #panel::-webkit-scrollbar { width: 6px; }
+  #panel::-webkit-scrollbar-track { background: transparent; }
+  #panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 3px; }
+  body.light-theme #panel { scrollbar-color: rgba(0,0,0,0.4) transparent; }
+  body.light-theme #panel::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); }
+
+  #nearest-list-wrap {
+    position: relative; margin-bottom: 4px;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  body.light-theme #nearest-list-wrap { border-color: rgba(0,0,0,0.5); }
+  #nearest-list-wrap::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0), var(--panel));
+    pointer-events: none; opacity: 0; transition: opacity 0.2s ease;
+    border-radius: 0 0 10px 10px;
+  }
+  #nearest-list-wrap.has-more::after { opacity: 1; }
+  #nearest-list { max-height: 217px; overflow-y: auto; padding: 6px 14px 6px 10px; scrollbar-color: rgba(255,255,255,0.5) transparent; }
+  #nearest-list::-webkit-scrollbar { width: 6px; }
+  #nearest-list::-webkit-scrollbar-track { background: transparent; }
+  #nearest-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 3px; }
+  body.light-theme #nearest-list { scrollbar-color: rgba(0,0,0,0.4) transparent; }
+  body.light-theme #nearest-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); }
+  #nearest-placeholder { font-size: 12px; color: var(--text-dim); line-height: 1.4; margin: 4px 0 8px 0; }
+  .nearest-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0; border-bottom: 1px solid var(--border);
+    font-size: 12.5px;
+  }
+  .nearest-row:last-child { border-bottom: none; }
+  .nearest-row:active { background: rgba(255,255,255,0.04); }
+  .nearest-swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
+  .nearest-swatch.free-tri {
+    width: 0; height: 0; border-radius: 0; background: transparent !important;
+    border-left: 6px solid transparent; border-right: 6px solid transparent;
+    border-bottom: 10px solid var(--free);
+  }
+  .nearest-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nearest-dist { color: var(--text-dim); font-size: 11px; width: 46px; text-align: right; flex: 0 0 auto; }
+  .nearest-cost { font-weight: 700; width: 94px; flex: 0 0 auto; text-align: right; white-space: nowrap; }
+  .nearest-cost.warn { color: #f59e0b; font-size: 10.5px; }
+
+  #loaded-count { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+
+  .section-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-dim);
+    margin: 14px 0 6px 0;
+  }
+  .section-label:first-child { margin-top: 12px; }
+
+  /* Slider för parkeringstid - kompakt en-rads variant */
+  #duration-row {
+    padding: 6px 0 10px 0;
+  }
+  #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; }
+  #duration-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #ffffff; border: 2px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  #duration-slider::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #ffffff; border: 2px solid var(--accent);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  body.light-theme #duration-slider::-webkit-slider-thumb { background: #000000 !important; }
+  body.light-theme #duration-slider::-moz-range-thumb { background: #000000 !important; }
+
+  #calc-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11.5px; color: var(--text-dim);
+    margin-top: 2px; margin-bottom: 4px;
+  }
+  #calc-row b { color: var(--text); font-weight: 700; }
+  #calc-now-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 8px;
+  }
+
+  .mini-btn {
+    background: var(--accent); border: 1px solid var(--accent); color: white;
+    font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 999px;
+    text-transform: none; letter-spacing: 0;
+  }
+
+  .info-btn {
+    width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto;
+    background: #4b5563; border: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: white; font-weight: 700;
+    margin-right: 20px;
+  }
+
+  /* Kompakt taxa-lista */
+  #taxa-list { display: flex; flex-direction: column; }
+  .taxa-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    min-height: 34px;
+  }
+  .taxa-row:last-child { border-bottom: none; }
+  .taxa-swatch { width: 14px; height: 14px; border-radius: 4px; flex: 0 0 auto; }
+  .taxa-swatch.free-tri {
+    width: 0; height: 0; border-radius: 0; background: transparent !important;
+    border-left: 7px solid transparent; border-right: 7px solid transparent;
+    border-bottom: 12px solid var(--free);
+  }
+  .taxa-name { font-size: 12.5px; font-weight: 600; width: 52px; flex: 0 0 auto; }
+  .taxa-price { font-size: 10.5px; color: var(--text-dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .taxa-cost-now { font-size: 12px; font-weight: 700; flex: 0 0 auto; width: 48px; text-align: right; }
+  .taxa-checkbox {
+    width: 19px; height: 19px; border-radius: 5px; flex: 0 0 auto;
+    border: 2px solid var(--text-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: transparent;
+  }
+  .taxa-checkbox.on {
+    background: var(--accent); border-color: var(--accent); color: white;
+  }
+
+  .mini-btn:disabled { opacity: 0.45; }
+
+  /* ---- Nedre detaljkort (vid vald pin) ---- */
+  #detail-card {
+    position: absolute; left: 12px; right: 12px; bottom: 16px; z-index: 700;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+    transform: translateY(140%);
+    transition: transform 0.25s cubic-bezier(.2,.8,.3,1);
+  }
+  #detail-card.open { transform: translateY(0); }
+  #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  #detail-card .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 700;
+    padding: 3px 8px; border-radius: 6px; margin-bottom: 6px;
+    background: var(--panel-2); color: var(--text-dim);
+  }
+  #detail-card h2 { font-size: 15px; margin: 0 0 2px 0; }
+  #detail-card .addr { font-size: 12px; color: var(--text-dim); }
+  #detail-card .close-x {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: white;
+  }
+  #detail-card.no-stats .stats, #detail-card.no-stats .actions { display: none; }
+  #detail-card .stats {
+    display: flex; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px;
+  }
+  #detail-card .stat { flex: 1; text-align: center; }
+  #detail-card .stat + .stat { border-left: 1px solid var(--border); }
+  #detail-card .stat .v { font-size: 14px; font-weight: 700; }
+  #detail-card .stat .k { font-size: 10.5px; color: var(--text-dim); margin-top: 2px; }
+  #detail-card .actions { display: flex; gap: 8px; margin-top: 12px; }
+  #detail-card .actions a, #detail-card .actions button {
+    flex: 1; padding: 11px; border-radius: 10px; text-align: center;
+    font-size: 13px; font-weight: 700; border: 1px solid var(--border);
+    text-decoration: none; color: var(--text); background: var(--panel-2);
+  }
+  #detail-card .actions .primary { background: var(--accent); border-color: var(--accent); color: white; flex: 1.3; }
+
+  /* ---- "Hitta mig" ---- */
+  #locate-btn {
+    width: 44px; height: 44px; flex: 0 0 auto;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: var(--shadow); font-size: 19px; color: white;
+  }
+  #locate-btn.locating { background: var(--text-dim); border-color: var(--text-dim); }
+
+  #scrim {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.3);
+    z-index: 580; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  }
+  #scrim.show { opacity: 1; pointer-events: auto; }
+
+  .leaflet-popup { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="map"></div>
+  <div id="scrim"></div>
+
+  <div id="topbar">
+    <div id="search-wrap">
+      <span style="color:var(--text-dim); font-size: 42px; line-height: 1; flex: 0 0 auto;">⌕</span>
+      <input id="search-input" placeholder="Sök adress, gata eller taxa" autocomplete="off">
+      <div id="search-clear">✕</div>
+    </div>
+    <div id="locate-btn">⌖</div>
+  </div>
+  <div id="search-suggestions"></div>
+
+  <div id="panel-wrap">
+    <div id="edge-tab">
+      <span class="tab-icon icon-open">›</span>
+      <span class="tab-icon icon-close">‹</span>
+    </div>
+    <div id="panel">
+      <div class="section-label" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between">
+        <span>Parkeringstid</span>
+        <span class="val" id="duration-val" style="text-transform:none; letter-spacing:0; font-size:26px; color:var(--text)">2 tim</span>
+      </div>
+      <div id="duration-row">
+        <input type="range" id="duration-slider" min="0" max="16" step="1" value="3">
+      </div>
+      <div id="calc-row">
+        <span>Beräknat från kl. <b id="calc-time">20:07</b></span>
+        <button id="calc-now-btn">↻ Nu</button>
+      </div>
+
+      <div class="section-label">Närmast dig</div>
+      <div id="nearest-list-wrap">
+        <div id="nearest-list">
+          <p id="nearest-placeholder">Tryck "Hitta mig" eller sök en plats ovan för att se de närmaste parkeringarna, sorterade efter avstånd.</p>
+        </div>
+      </div>
+
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Parkeringar</span>
+        <button id="bulk-btn" class="mini-btn">Endast gratis</button>
+      </div>
+      <div id="taxa-list"><!-- fylls av JS, gratis-kategorier överst --></div>
+
+      <div id="theme-row">
+        <div id="loaded-count">2 598 parkeringar laddade</div>
+        <div id="theme-toggle">🌙</div>
+        <div id="map-toggle">🗺️</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="detail-card">
+    <div class="top-row">
+      <div>
+        <div class="badge" id="d-badge">TAXA 3</div>
+        <h2 id="d-title">Vasagatan</h2>
+        <div class="addr" id="d-addr">Vasastaden, Göteborg</div>
+      </div>
+      <div class="close-x" id="d-close">✕</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="v" id="d-cost">14 kr</div><div class="k">för 2 tim</div></div>
+      <div class="stat"><div class="v" id="d-dist">180 m</div><div class="k">avstånd</div></div>
+      <div class="stat"><div class="v" id="d-slots">6</div><div class="k">platser</div></div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="d-navigate">Navigera hit</button>
+      <a href="#" id="d-google">Google</a>
+      <a href="#" id="d-waze">Waze</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  // ---------- Riktig data: data.goteborg.se ParkingService ----------
+  const APPID = 'd5d377dd-ec35-4395-b965-e1da3920366b';
+  const BASE = 'https://data.goteborg.se/ParkingService/v2.3/';
+
+  // Spektrum-palett utan grönt (grönt är reserverat för gratiskategorierna)
+  const TAXA_PALETTE = ['#ef4444','#f97316','#eab308','#3b82f6','#6366f1','#8b5cf6','#ec4899','#06b6d4','#f43f5e','#0ea5e9','#a855f7','#f59e0b','#14b8a6'];
+
+  function extractTaxa(charge) {
+    const m = charge && charge.match(/Taxa\s+(\w+)/i);
+    return m ? m[1].toUpperCase() : null;
+  }
+  // Enkel kr/tim-tolkning av ParkingCost-texten - en förenkling tills vidare (se punkt E för riktig dag/natt-uträkning)
+  function parseSimpleRate(costText) {
+    if (!costText) return null;
+    let m = costText.match(/(\d+)\s*kr\s*\/\s*tim/i);
+    if (m) return parseInt(m[1]);
+    m = costText.match(/(\d+)\s*kr\s*\/\s*30\s*min/i);
+    if (m) return parseInt(m[1]) * 2;
+    m = costText.match(/(\d+)\s*kr/i);
+    if (m) return parseInt(m[1]);
+    return null;
+  }
+  function taxaSortKey(code) {
+    const n = parseInt(code);
+    return isNaN(n) ? [1, code] : [0, n];
+  }
+
+  let allTollFeatures = [];
+  let allTimeFeatures = [];
+  const TAXA_GROUPS = {};   // code -> { id, name, color, perHour, rules, spots: [] }
+  const FREE_GROUPS = {};   // label -> { id, label, maxMinutes, rules, spots: [] }
+  let TAXA_ORDER = [];
+  let FREE_ORDER = [];
+  const markerLayers = {};
+
+  // ---------- Karta ----------
+  const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([57.7075, 11.9675], 15);
+  const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap-bidragsgivare', maxZoom: 19
+  });
+  const voyagerLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO', subdomains: 'abcd', maxZoom: 20
+  });
+  osmLayer.addTo(map);
+
+  function makeIcon(color, symbol) {
+    return L.divIcon({
+      html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;">${symbol}</div>`,
+      className: '', iconSize: [24,24], iconAnchor: [12,12]
+    });
+  }
+
+  function makeFreeTriangleIcon() {
+    // Triangel istället för rund prick, så gratisplatser syns tydligt skilda från taxor på kartan
+    return L.divIcon({
+      html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:20px solid var(--free);filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));"></div>`,
+      className: '', iconSize: [24,20], iconAnchor: [12,18]
+    });
+  }
+
+  // Bygger taxa-/gratisgrupper (färg, spots) från den råa API-datan
+  function buildGroupsFromData() {
+    allTollFeatures.forEach(p => {
+      const code = extractTaxa(p.ParkingCharge);
+      if (!code || !p.Lat || !p.Long) return;
+      if (!TAXA_GROUPS[code]) {
+        TAXA_GROUPS[code] = { id: 'taxa-' + code, code, name: 'Taxa ' + code, color: null, perHour: parseSimpleRate(p.ParkingCost), rules: p.ParkingCost || '', spots: [] };
+      }
+      TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces });
+    });
+    TAXA_ORDER = Object.keys(TAXA_GROUPS).sort((a, b) => {
+      const ka = taxaSortKey(a), kb = taxaSortKey(b);
+      return ka[0] - kb[0] || (ka[1] > kb[1] ? 1 : ka[1] < kb[1] ? -1 : 0);
+    });
+    TAXA_ORDER.forEach((code, i) => { TAXA_GROUPS[code].color = TAXA_PALETTE[i % TAXA_PALETTE.length]; });
+
+    allTimeFeatures.forEach(p => {
+      if (!p.Lat || !p.Long) return;
+      const maxLabel = p.MaxParkingTime || 'okänd tid';
+      const label = 'Gratis ' + maxLabel;
+      const id = 'free-' + maxLabel.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      if (!FREE_GROUPS[label]) {
+        FREE_GROUPS[label] = { id, label, maxMinutes: parseMaxParkingMinutes(maxLabel), rules: 'Gratis parkering, max ' + maxLabel + ' i följd. Kontrollera skyltning på plats.', spots: [] };
+      }
+      FREE_GROUPS[label].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces });
+    });
+    FREE_ORDER = Object.keys(FREE_GROUPS).sort((a, b) => {
+      const ma = FREE_GROUPS[a].maxMinutes ?? Infinity, mb = FREE_GROUPS[b].maxMinutes ?? Infinity;
+      return ma - mb;
+    });
+  }
+
+  // Tolkar "4 tim", "30 min", "7 dygn" till minuter
+  function parseMaxParkingMinutes(str) {
+    if (!str) return null;
+    const m = str.match(/(\d+)\s*(min|tim|dygn)/i);
+    if (!m) return null;
+    const value = parseInt(m[1]);
+    const unit = m[2].toLowerCase();
+    if (unit === 'min') return value;
+    if (unit === 'tim') return value * 60;
+    if (unit === 'dygn') return value * 24 * 60;
+    return null;
+  }
+
+  function buildMarkerLayers() {
+    TAXA_ORDER.forEach(code => {
+      const taxa = TAXA_GROUPS[code];
+      const group = L.layerGroup().addTo(map);
+      taxa.spots.forEach(spot => {
+        const marker = L.marker([spot.lat, spot.lng], { icon: makeIcon(taxa.color, taxa.code) }).addTo(group);
+        marker.on('click', () => openDetail({
+          badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
+          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'), dist: '—', slots: spot.slots ?? '—'
+        }));
+      });
+      markerLayers[taxa.id] = group;
+    });
+    FREE_ORDER.forEach(label => {
+      const free = FREE_GROUPS[label];
+      const group = L.layerGroup().addTo(map);
+      free.spots.forEach(spot => {
+        const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon() }).addTo(group);
+        marker.on('click', () => openDetail({
+          badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
+          cost: 'Gratis', dist: '—', slots: spot.slots ?? '—'
+        }));
+      });
+      markerLayers[free.id] = group;
+    });
+  }
+
+  // JSONP-laddning, eftersom API:et sannolikt inte sätter CORS-headers för vanlig fetch
+  let pendingLoads = 0;
+  function jsonp(url, callbackName, onData, onError) {
+    pendingLoads++;
+    window[callbackName] = function (data) {
+      onData(data);
+      delete window[callbackName];
+      script.remove();
+      pendingLoads--;
+      if (pendingLoads === 0) onAllLoaded();
+    };
+    const script = document.createElement('script');
+    script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+    script.onerror = () => {
+      pendingLoads--;
+      onError && onError();
+      if (pendingLoads === 0) onAllLoaded();
+    };
+    document.body.appendChild(script);
+  }
+
+  function setLoadedCount(text) {
+    document.getElementById('loaded-count').textContent = text;
+  }
+
+  function onAllLoaded() {
+    buildGroupsFromData();
+    buildMarkerLayers();
+    [...FREE_ORDER.map(l => FREE_GROUPS[l].id), ...TAXA_ORDER.map(c => TAXA_GROUPS[c].id)].forEach(id => { checkedState[id] = true; });
+    const total = allTollFeatures.length + allTimeFeatures.length;
+    setLoadedCount(total > 0 ? total.toLocaleString('sv-SE') + ' parkeringar laddade' : 'Kunde inte ladda parkeringsdata');
+    renderTaxaList();
+  }
+
+  setLoadedCount('Hämtar parkeringar…');
+  jsonp(`${BASE}PublicTollParkings/${APPID}?format=JSON`, 'onToll',
+    (data) => { allTollFeatures = Array.isArray(data) ? data : []; },
+    () => { /* fel hanteras i onAllLoaded via totalräkning */ }
+  );
+  jsonp(`${BASE}PublicTimeParkings/${APPID}?format=JSON`, 'onTime',
+    (data) => { allTimeFeatures = Array.isArray(data) ? data : []; },
+    () => { /* fel hanteras i onAllLoaded via totalräkning */ }
+  );
+
+  // ---------- Panel (slidear in från vänster, fliken glider med hela vägen) ----------
+  const panelWrap = document.getElementById('panel-wrap');
+  const scrim = document.getElementById('scrim');
+  const edgeTab = document.getElementById('edge-tab');
+  let panelIsOpen = false;
+
+  function openPanel() {
+    if (panelIsOpen) return;
+    panelIsOpen = true;
+    panelWrap.classList.add('open');
+    scrim.classList.add('show');
+  }
+  function closePanel() {
+    if (!panelIsOpen) return;
+    panelIsOpen = false;
+    panelWrap.classList.remove('open');
+    scrim.classList.remove('show');
+  }
+  edgeTab.addEventListener('click', () => {
+    panelIsOpen ? closePanel() : openPanel();
+  });
+  scrim.addEventListener('click', closePanel);
+
+  // ---------- Kombinerad lista: gratis överst, sedan taxor ----------
+  const taxaListEl = document.getElementById('taxa-list');
+
+  // Ojämna tidssteg, exakt som webbversionen: kvart upp till 1 tim, halvtimme upp till 6 tim, sedan 2-timmarshopp
+  const DURATION_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 12];
+
+  function formatHours(h) {
+    if (h < 1) return Math.round(h * 60) + ' min';
+    const wholePart = Math.floor(h);
+    const hasHalf = (h - wholePart) >= 0.4;
+    return (hasHalf ? (wholePart + ',5') : wholePart) + ' tim';
+  }
+  function getDurationHours() { return DURATION_STEPS[parseInt(document.getElementById('duration-slider').value)]; }
+
+  // Håller reda på om en rad ÄR ibockad, oavsett om den råkar vara dold just nu.
+  // Fylls i onAllLoaded() när datan har hunnit laddas in.
+  const checkedState = {};
+
+  // "Gratis"-filtret: när aktivt visas bara gratiskategorierna, alla taxor döljs helt
+  let showOnlyFree = false;
+
+  function fitsDuration(item) {
+    if (!item.maxMinutes) return true; // taxor har ingen övre gräns i denna skiss (se punkt F)
+    return getDurationHours() * 60 <= item.maxMinutes;
+  }
+
+  function visibleIds() {
+    const freeIds = FREE_ORDER.map(l => FREE_GROUPS[l]).filter(fitsDuration).map(f => f.id);
+    const taxaIds = showOnlyFree ? [] : TAXA_ORDER.map(c => TAXA_GROUPS[c].id);
+    return [...freeIds, ...taxaIds];
+  }
+
+  function renderTaxaList() {
+    const hours = getDurationHours();
+    taxaListEl.innerHTML = '';
+
+    FREE_ORDER.forEach(label => {
+      const free = FREE_GROUPS[label];
+      if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
+      const row = document.createElement('div');
+      row.className = 'taxa-row';
+      row.innerHTML = `
+        <div class="taxa-swatch free-tri"></div>
+        <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
+        <div class="info-btn" data-info-free="${free.id}">ⓘ</div>
+        <div class="taxa-checkbox ${checkedState[free.id] ? 'on' : ''}" data-id="${free.id}">✓</div>
+      `;
+      taxaListEl.appendChild(row);
+    });
+
+    if (!showOnlyFree) {
+      TAXA_ORDER.forEach(code => {
+        const taxa = TAXA_GROUPS[code];
+        const row = document.createElement('div');
+        row.className = 'taxa-row';
+        row.innerHTML = `
+          <div class="taxa-swatch" style="background:${taxa.color}"></div>
+          <div class="taxa-name">Taxa ${taxa.code}</div>
+          <div class="taxa-price">${taxa.perHour ? Math.round(taxa.perHour * hours) + ' kr' : '—'}</div>
+          <div class="info-btn" data-info="${taxa.id}">ⓘ</div>
+          <div class="taxa-checkbox ${checkedState[taxa.id] ? 'on' : ''}" data-id="${taxa.id}">✓</div>
+        `;
+        taxaListEl.appendChild(row);
+      });
+    }
+
+    taxaListEl.querySelectorAll('.taxa-checkbox').forEach(t => {
+      t.addEventListener('click', () => {
+        const id = t.dataset.id;
+        const on = t.classList.toggle('on');
+        checkedState[id] = on;
+        if (on) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
+        updateBulkLabel();
+        renderNearestList();
+      });
+    });
+    taxaListEl.querySelectorAll('.info-btn[data-info]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taxa = TAXA_ORDER.map(c => TAXA_GROUPS[c]).find(t => t.id === btn.dataset.info);
+        if (!taxa) return;
+        openDetail({ badge: taxa.name.toUpperCase(), title: 'Regler', addr: taxa.rules || 'Ingen regeltext tillgänglig.', cost: '', dist: '', slots: '' });
+      });
+    });
+    taxaListEl.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const free = FREE_ORDER.map(l => FREE_GROUPS[l]).find(f => f.id === btn.dataset.infoFree);
+        if (!free) return;
+        openDetail({ badge: free.label.toUpperCase(), title: 'Regler', addr: free.rules, cost: '', dist: '', slots: '' });
+      });
+    });
+    syncLayersToState();
+    updateBulkLabel();
+    renderNearestList();
+  }
+
+  // Kartlager matchar checked-state, men bara för rader som faktiskt är synliga just nu
+  function syncLayersToState() {
+    const visible = visibleIds();
+    const allIds = [...FREE_ORDER.map(l => FREE_GROUPS[l].id), ...TAXA_ORDER.map(c => TAXA_GROUPS[c].id)];
+    allIds.forEach(id => {
+      const shouldShow = visible.includes(id) && checkedState[id];
+      if (shouldShow) map.addLayer(markerLayers[id]);
+      else map.removeLayer(markerLayers[id]);
+    });
+  }
+
+  function updateBulkLabel() {
+    const btn = document.getElementById('bulk-btn');
+    btn.textContent = showOnlyFree ? 'Visa alla' : 'Endast gratis';
+    btn.classList.toggle('active', showOnlyFree);
+  }
+
+  document.getElementById('bulk-btn').addEventListener('click', () => {
+    showOnlyFree = !showOnlyFree;
+    const allIds = [...FREE_ORDER.map(l => FREE_GROUPS[l].id), ...TAXA_ORDER.map(c => TAXA_GROUPS[c].id)];
+    allIds.forEach(id => { checkedState[id] = true; });
+    renderTaxaList();
+  });
+
+  document.getElementById('duration-slider').addEventListener('input', () => {
+    document.getElementById('duration-val').textContent = formatHours(getDurationHours());
+    renderTaxaList();
+  });
+  document.getElementById('duration-val').textContent = formatHours(getDurationHours());
+
+  // ---------- Närmast dig ----------
+  let referencePoint = null; // { lat, lng } - sätts av "Hitta mig" eller sökt adress/gata
+
+  function haversineMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function formatDistance(m) {
+    if (m < 1000) return Math.round(m) + ' m';
+    return (m / 1000).toFixed(1).replace('.', ',') + ' km';
+  }
+  function collectAllSpots() {
+    const spots = [];
+    FREE_ORDER.forEach(label => {
+      const f = FREE_GROUPS[label];
+      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label }));
+    });
+    TAXA_ORDER.forEach(code => {
+      const t = TAXA_GROUPS[code];
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, perHour: t.perHour }));
+    });
+    return spots;
+  }
+  function updateReferencePoint(lat, lng) {
+    referencePoint = { lat, lng };
+    renderNearestList();
+  }
+
+  function renderNearestList() {
+    const listEl = document.getElementById('nearest-list');
+    const wrapEl = document.getElementById('nearest-list-wrap');
+    if (!referencePoint) {
+      listEl.innerHTML = '<p id="nearest-placeholder">Tryck "Hitta mig" eller sök en plats ovan för att se de närmaste parkeringarna, sorterade efter avstånd.</p>';
+      wrapEl.classList.remove('has-more');
+      return;
+    }
+    const visible = visibleIds();
+    const hours = getDurationHours();
+    const nearest = collectAllSpots()
+      .filter(s => visible.includes(s.groupId) && checkedState[s.groupId])
+      .map(s => ({ ...s, dist: haversineMeters(referencePoint.lat, referencePoint.lng, s.lat, s.lng) }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 25);
+
+    if (nearest.length === 0) {
+      listEl.innerHTML = '<p id="nearest-placeholder">Inga parkeringar matchar dina filter just nu — kryssa i fler taxor eller ändra parkeringstiden.</p>';
+      wrapEl.classList.remove('has-more');
+      return;
+    }
+
+    listEl.innerHTML = '';
+    nearest.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'nearest-row';
+      const cost = s.type === 'free' ? s.freeLabel : Math.round(s.perHour * hours) + ' kr';
+      row.innerHTML = `
+        <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" ${s.type === 'taxa' ? `style="background:var(--taxa-${s.groupId})"` : ''}></div>
+        <div class="nearest-name">${s.name}</div>
+        <div class="nearest-dist">${formatDistance(s.dist)}</div>
+        <div class="nearest-cost">${cost}</div>
+      `;
+      row.addEventListener('click', () => {
+        const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng], [s.lat, s.lng]);
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 18 });
+        closePanel();
+      });
+      listEl.appendChild(row);
+    });
+    listEl.scrollTop = 0;
+    updateNearestFade();
+  }
+
+  // Visar en nedtoningsgradient längst ner på listan så länge det finns mer att scrolla till
+  function updateNearestFade() {
+    const listEl = document.getElementById('nearest-list');
+    const wrapEl = document.getElementById('nearest-list-wrap');
+    const hasMore = listEl.scrollHeight - listEl.scrollTop - listEl.clientHeight > 4;
+    wrapEl.classList.toggle('has-more', hasMore);
+  }
+  document.getElementById('nearest-list').addEventListener('scroll', updateNearestFade);
+  window.addEventListener('resize', updateNearestFade);
+
+  // ---------- Beräknat från kl. HH:MM / Nu ----------
+  function formatClock(d) {
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+  let calcTime = new Date();
+  document.getElementById('calc-time').textContent = formatClock(calcTime);
+  document.getElementById('calc-now-btn').addEventListener('click', () => {
+    calcTime = new Date();
+    document.getElementById('calc-time').textContent = formatClock(calcTime);
+  });
+
+  // ---------- Detaljkort ----------
+  const detailCard = document.getElementById('detail-card');
+  function openDetail(data) {
+    document.getElementById('d-badge').textContent = data.badge;
+    document.getElementById('d-title').textContent = data.title;
+    document.getElementById('d-addr').textContent = data.addr;
+    document.getElementById('d-cost').textContent = data.cost;
+    document.getElementById('d-dist').textContent = data.dist;
+    document.getElementById('d-slots').textContent = data.slots;
+    detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
+    detailCard.classList.add('open');
+  }
+  document.getElementById('d-close').addEventListener('click', () => detailCard.classList.remove('open'));
+
+  // ---------- Tema (knapp i topbaren) ----------
+  const themeToggle = document.getElementById('theme-toggle');
+  function setTheme(theme) {
+    document.body.classList.toggle('light-theme', theme === 'light');
+    themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+  }
+  let currentTheme = 'dark';
+  setTheme(currentTheme);
+  themeToggle.addEventListener('click', () => {
+    currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    setTheme(currentTheme);
+  });
+
+  // ---------- Karta: växla Standard/Voyager ----------
+  const mapToggle = document.getElementById('map-toggle');
+  let currentMapStyle = 'standard';
+
+  // Flerfärgad variant (Standard/OpenStreetMap) - varje veck i egen färg, kompass i blått,
+  // med en maskeringscirkel i knappens egen bakgrundsfärg som döljer kartans hörn under kompassen
+  const mapIconSvgColor = `
+    <svg viewBox="0 0 27 24" width="27" height="27" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 6 L1 22 L8 18 L8 2 Z" stroke="#ef4444"/>
+      <path d="M8 2 L8 18 L16 22 L16 6 Z" stroke="#22c55e"/>
+      <path d="M16 6 L16 22 L23 18 L23 2 Z" stroke="#eab308"/>
+      <circle cx="19.3" cy="6.3" r="4.7" fill="var(--panel-2)" stroke="none"/>
+      <circle cx="19.3" cy="6.3" r="4.3" stroke="#3b82f6" fill="none"/>
+      <path d="M17.7 7.9 L20.9 4.7 L19.6 8.5 Z" fill="#3b82f6" stroke="none"/>
+    </svg>`;
+
+  // Svartvit variant (Voyager) - ärver knappens vanliga textfärg (tema-anpassad), samma maskeringstrick
+  const mapIconSvgMono = `
+    <svg viewBox="0 0 27 24" width="27" height="27" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 6 L1 22 L8 18 L16 22 L23 18 L23 2 L16 6 L8 2 Z"/>
+      <path d="M8 2 L8 18 M16 6 L16 22"/>
+      <circle cx="19.3" cy="6.3" r="4.7" fill="var(--panel-2)" stroke="none"/>
+      <circle cx="19.3" cy="6.3" r="4.3"/>
+      <path d="M17.7 7.9 L20.9 4.7 L19.6 8.5 Z" fill="currentColor" stroke="none"/>
+    </svg>`;
+
+  function setMapStyle(style) {
+    currentMapStyle = style;
+    if (style === 'voyager') {
+      if (map.hasLayer(osmLayer)) map.removeLayer(osmLayer);
+      voyagerLayer.addTo(map);
+      mapToggle.innerHTML = mapIconSvgColor; // visar färgglad = tryck för att byta TILL Standard
+      mapToggle.style.color = '';
+    } else {
+      if (map.hasLayer(voyagerLayer)) map.removeLayer(voyagerLayer);
+      osmLayer.addTo(map);
+      mapToggle.innerHTML = mapIconSvgMono; // visar svartvit = tryck för att byta TILL Voyager
+    }
+  }
+  setMapStyle('standard');
+  mapToggle.addEventListener('click', () => {
+    setMapStyle(currentMapStyle === 'standard' ? 'voyager' : 'standard');
+  });
+
+  // ---------- Sökfunktion: lokala parkeringsnamn + Nominatim-adresser ----------
+  const searchInput = document.getElementById('search-input');
+  const searchClear = document.getElementById('search-clear');
+  const suggestionsBox = document.getElementById('search-suggestions');
+  let searchDebounceTimer = null;
+  let lastLocalMatches = [];
+  let referenceMarker = null;
+
+  // Alla platsnamn vi känner till lokalt (taxor + gratiskategorier), utan dubbletter
+  function allKnownSpots() {
+    const spots = [];
+    TAXA_ORDER.forEach(code => TAXA_GROUPS[code].spots.forEach(s => spots.push({ name: s.title, lat: s.lat, lng: s.lng })));
+    FREE_ORDER.forEach(label => FREE_GROUPS[label].spots.forEach(s => spots.push({ name: s.title, lat: s.lat, lng: s.lng })));
+    const seen = new Set();
+    return spots.filter(s => {
+      if (seen.has(s.name)) return false;
+      seen.add(s.name);
+      return true;
+    });
+  }
+
+  function setReferencePoint(lat, lng, label) {
+    if (referenceMarker) {
+      referenceMarker.setLatLng([lat, lng]);
+    } else {
+      referenceMarker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          html: `<div style="width:16px;height:16px;border-radius:50% 50% 50% 0;background:#ec4899;border:2px solid white;transform:rotate(-45deg);box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+          className: '', iconSize: [16,16], iconAnchor: [8,16]
+        })
+      }).addTo(map);
+    }
+    updateReferencePoint(lat, lng);
+  }
+
+  function renderSuggestionRow(item) {
+    const row = document.createElement('div');
+    row.className = 'suggestion-row';
+    row.innerHTML = `
+      <span class="suggestion-tag">${item.type === 'gata' ? 'Gata' : 'Adress'}</span>
+      <span class="suggestion-label">${item.label}</span>
+    `;
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault(); // hindra att inputen tappar fokus innan klicket hinner registreras
+      searchInput.value = item.label;
+      suggestionsBox.classList.remove('show');
+      if (item.type === 'gata') {
+        setReferencePoint(item.lat, item.lng, item.label);
+        map.setView([item.lat, item.lng], 17);
+      } else {
+        setReferencePoint(item.lat, item.lng, item.label);
+        map.setView([item.lat, item.lng], 16);
+      }
+      searchClear.classList.add('show');
+      searchInput.blur(); // göm tangentbordet efter valt förslag
+    });
+    return row;
+  }
+
+  function showSuggestions(items) {
+    suggestionsBox.innerHTML = '';
+    if (items.length === 0) { suggestionsBox.classList.remove('show'); return; }
+    items.forEach(item => suggestionsBox.appendChild(renderSuggestionRow(item)));
+    suggestionsBox.classList.add('show');
+  }
+
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim();
+    searchClear.classList.toggle('show', query.length > 0);
+    clearTimeout(searchDebounceTimer);
+    if (query.length < 2) {
+      suggestionsBox.classList.remove('show');
+      return;
+    }
+
+    // Lokala gatu-/parkeringsnamn visas direkt, ingen fördröjning
+    lastLocalMatches = allKnownSpots()
+      .filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+      .slice(0, 5)
+      .map(s => ({ type: 'gata', label: s.name, lat: s.lat, lng: s.lng }));
+    showSuggestions(lastLocalMatches);
+
+    // Adressförslag mot Nominatim (OpenStreetMap), fördröjt så det inte spammar API:et
+    searchDebounceTimer = setTimeout(() => {
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+        .then(r => r.json())
+        .then(results => {
+          const addressMatches = results.map(r => ({
+            type: 'address', label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon)
+          }));
+          showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
+        })
+        .catch(() => { /* tyst fel - de lokala förslagen visas ändå */ });
+    }, 400);
+  });
+
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClear.classList.remove('show');
+    suggestionsBox.classList.remove('show');
+    searchInput.focus();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target !== searchInput && !suggestionsBox.contains(e.target)) {
+      suggestionsBox.classList.remove('show');
+    }
+  });
+
+  // ---------- Hitta mig (riktig geolokalisering) ----------
+  let userLocationMarker = null;
+  const locateBtn = document.getElementById('locate-btn');
+  locateBtn.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Den här webbläsaren stödjer inte platsdelning.');
+      return;
+    }
+    locateBtn.classList.add('locating');
+    locateBtn.textContent = '⏳';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 16);
+        if (userLocationMarker) {
+          userLocationMarker.setLatLng([latitude, longitude]);
+        } else {
+          userLocationMarker = L.circleMarker([latitude, longitude], {
+            radius: 8, color: '#fff', weight: 3, fillColor: '#3b82f6', fillOpacity: 1
+          }).addTo(map);
+        }
+        updateReferencePoint(latitude, longitude);
+        locateBtn.classList.remove('locating');
+        locateBtn.textContent = '⌖';
+      },
+      (err) => {
+        locateBtn.classList.remove('locating');
+        locateBtn.textContent = '⌖';
+        alert('Kunde inte hämta din position. Kontrollera att platsdelning är tillåten för sidan.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+</script>
+</body>
+</html>
