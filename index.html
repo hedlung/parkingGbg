@@ -14,6 +14,17 @@
     --text: #e7e9ea;
     --muted: #8a9198;
     --accent: #4fb3a9;
+    --accent-light: #cdece8;
+    --sidebar-width: 240px;
+  }
+  body.light-theme {
+    --bg: #f3f4f5;
+    --panel: #ffffff;
+    --line: #dde1e4;
+    --text: #16181a;
+    --muted: #6b7278;
+    --accent: #2f8f84;
+    --accent-light: #e2f3f1;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -46,12 +57,31 @@
     min-height: 0;
   }
   #sidebar {
-    width: 240px;
-    padding: 12px;
-    border-right: 1px solid var(--line);
-    overflow-y: auto;
+    width: var(--sidebar-width);
     background: var(--panel);
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #sidebar-content {
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  #sidebar-resizer {
+    width: 6px;
+    flex-shrink: 0;
+    cursor: ew-resize;
+    background: var(--line);
+    position: relative;
+  }
+  #sidebar-resizer:hover, #sidebar-resizer.dragging { background: var(--accent); }
+  #sidebar-resizer::after {
+    content: "";
+    position: absolute;
+    left: -4px; right: -4px; top: 0; bottom: 0;
   }
   #sidebar h2 {
     font-size: 11px;
@@ -76,7 +106,40 @@
     width: 10px; height: 10px; border-radius: 50%;
     flex-shrink: 0;
   }
+  .swatch-triangle {
+    width: 0; height: 0;
+    flex-shrink: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 10px solid currentColor;
+  }
   .taxa-cost { margin-left: auto; color: var(--muted); font-size: 11px; }
+.taxa-info-icon {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: var(--muted);
+  font-size: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.taxa-info-icon:hover { background: rgba(255,255,255,0.16); color: var(--text); }
+.taxa-row-wrap { position: relative; }
+.taxa-tooltip {
+  display: none;
+  position: relative;
+  margin: 2px 0 8px;
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.taxa-tooltip.visible { display: block; }
+.taxa-tooltip .label { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
   #map { flex: 1; }
   .btnrow { display: flex; gap: 6px; margin-top: 10px; }
   .btnrow button {
@@ -90,24 +153,57 @@
     cursor: pointer;
   }
   .btnrow button:hover { background: #363d44; }
+.nearest-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.nearest-row:hover { background: rgba(255,255,255,0.04); }
+.nearest-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nearest-dist { color: var(--muted); font-size: 11px; width: 48px; text-align: right; flex-shrink: 0; }
+.nearest-cost { font-weight: 600; width: 80px; text-align: right; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#nearest-list { max-height: 280px; overflow-y: auto; }
+  #theme-bar {
+    display: flex;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  .theme-btn {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .theme-btn.active { color: var(--text); font-weight: 600; background: rgba(128,128,128,0.12); }
   .leaflet-popup-content-wrapper {
     background: var(--panel);
     color: var(--text);
     border-radius: 8px;
   }
   .leaflet-popup-tip { background: var(--panel); }
-  .popup-title { font-weight: 600; margin: 0 0 4px; }
-  .popup-taxa { color: var(--accent); font-weight: 600; }
-  .popup-cost { color: var(--muted); font-size: 12px; margin: 2px 0 6px; }
-  .directions-link {
-    display: inline-block;
-    margin-top: 6px;
-    margin-right: 8px;
-    font-size: 12px;
-    color: var(--accent);
-    text-decoration: none;
-  }
-  .directions-link:hover { text-decoration: underline; }
+  .leaflet-popup-content p.popup-title { font-weight: 600; margin: 0 0 3px !important; }
+  .leaflet-popup-content p.popup-taxa { color: var(--text); font-weight: 600; margin: 0 0 3px !important; }
+  .leaflet-popup-content p.popup-cost { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 0 !important; }
+  .popup-directions { margin-top: 8px; }
+  .leaflet-popup-content a.directions-link,
+.leaflet-popup-content a.directions-link:visited {
+  display: block;
+  margin: 0 0 3px;
+  font-size: 12px;
+  color: var(--accent) !important;
+  text-decoration: none;
+  font-weight: 600;
+}
+.leaflet-popup-content a.directions-link:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -117,27 +213,56 @@
     <h1>Parkera i Göteborg</h1>
     <p>Sök gatuparkering efter taxa. Klicka en punkt för vägbeskrivning.</p>
   </div>
-  <div style="display:flex; align-items:center; gap:10px;">
-    <button id="locate-btn" style="background:var(--accent); color:#0b1211; border:none; border-radius:6px; padding:7px 12px; font-size:13px; font-weight:600; cursor:pointer;">📍 Hitta mig</button>
-    <div id="status">Hämtar data…</div>
-  </div>
+  <div id="status">Hämtar data…</div>
 </header>
 
 <div id="layout">
   <div id="sidebar">
-    <h2>Visa</h2>
-    <label class="taxa-row"><input type="checkbox" id="toggle-free" checked> <span class="swatch" style="background:#4fb3a9"></span> Gratis (tidsparkering)</label>
+    <div id="sidebar-content">
+      <button id="locate-btn" title="Hitta mig" style="display:flex; align-items:center; justify-content:center; gap:6px; width:100%; background:var(--accent-light); color:var(--accent); border:none; border-radius:6px; padding:8px 12px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+        Hitta mig
+      </button>
 
-    <h2>Taxa (avgift)</h2>
-    <div id="taxa-list"></div>
+      <h2 style="margin-top:0;">Sök plats</h2>
+      <div style="position:relative;">
+        <input type="text" id="search-input" placeholder="Adress eller gatunamn…"
+          style="width:100%; padding:7px 26px 7px 8px; border-radius:6px; border:1px solid var(--line); background:#ffffff; color:#14171a; font-size:13px;">
+        <button id="search-clear-btn" title="Rensa" style="display:none; position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; color:#888; font-size:15px; cursor:pointer; padding:2px 6px; line-height:1;">✕</button>
+        <div id="search-suggestions"
+          style="position:absolute; top:100%; left:0; right:0; background:#fff8dc; color:#14171a; border:1px solid var(--line); border-top:none; border-radius:0 0 6px 6px; max-height:240px; overflow-y:auto; z-index:1000; display:none;"></div>
+      </div>
 
-    <div class="btnrow">
-      <button id="select-all">Alla</button>
-      <button id="select-none">Ingen</button>
+      <h2>Närmast dig</h2>
+      <div id="nearest-list"><p style="font-size:12px;color:var(--muted);">Klicka "Hitta mig" ovan för att se de närmaste parkeringarna, sorterade efter avstånd.</p></div>
+
+      <div id="duration-control" style="margin:14px 0;">
+        <label style="font-size:13px; display:flex; justify-content:space-between;">
+          <span>Parkeringstid</span>
+          <span id="duration-label" style="color:var(--accent); font-weight:600;">1 tim</span>
+        </label>
+        <input type="range" id="duration-slider" min="0" max="16" step="1" value="3" style="width:100%; accent-color: var(--accent);">
+        <div style="font-size:10px; color:var(--muted); margin-top:4px; display:flex; align-items:center; justify-content:space-between;">
+          <span>Beräknat från kl. <strong id="calc-time" style="color:var(--text);">--:--</strong></span>
+          <button id="refresh-time-btn" title="Räkna om from nu" style="background:none; border:1px solid var(--line); border-radius:4px; color:var(--text); font-size:12px; padding:2px 7px; cursor:pointer; line-height:1.4;">↻ Nu</button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px;">
+        <h2 style="margin:0;">Parkeringar</h2>
+        <button id="combined-bulk-btn" style="background:var(--line); color:var(--text); border:none; border-radius:4px; padding:4px 10px; font-size:11px; cursor:pointer;">Visa alla</button>
+      </div>
+      <div id="combined-list"><p style="font-size:12px;color:var(--muted);">Laddar…</p></div>
+    </div>
+    <div id="theme-bar">
+      <button id="theme-dark" class="theme-btn">🌙 Mörkt</button>
+      <button id="theme-light" class="theme-btn">☀️ Ljust</button>
     </div>
   </div>
+  <div id="sidebar-resizer"></div>
   <div id="map"></div>
 </div>
+
 
 <script>
 // ---- Konfiguration ----
@@ -146,20 +271,20 @@ const BASE = "https://data.goteborg.se/ParkingService/v2.3/";
 
 // Färg per taxa. Dyrare taxa = varmare färg. Taxa A (korttid) får egen färg.
 const TAXA_COLORS = {
-  "1":  "#e94f4f",
-  "2":  "#e97a4f",
-  "3":  "#e9a04f",
-  "4":  "#e9c04f",
-  "5":  "#cbd94f",
-  "6":  "#8fd94f",
-  "7":  "#4fd97a",
-  "8":  "#4fd9c0",
-  "9":  "#4fc0d9",
-  "12": "#b04fe9",
-  "22": "#8f4fe9",
-  "24": "#e94fbb",
-  "62": "#4f7ae9",
-  "A":  "#f2f24f"
+  "1":  "#e04740", // röd
+  "2":  "#e07940", // orange
+  "3":  "#e0a640", // amber
+  "4":  "#d9c340", // senapsgul
+  "5":  "#c9c940", // gul
+  "6":  "#40a6e0", // himmelsblå
+  "7":  "#4079e0", // blå
+  "8":  "#6b40e0", // blåviolett
+  "9":  "#9c40e0", // violett
+  "12": "#e040a0", // rosa
+  "22": "#c440e0", // magenta
+  "24": "#e04070", // cerise
+  "62": "#4040e0", // indigo
+  "A":  "#e0cf40"  // guldgul
 };
 const TAXA_LABELS = {
   "1": "Taxa 1", "2": "Taxa 2", "3": "Taxa 3", "4": "Taxa 4", "5": "Taxa 5",
@@ -169,13 +294,121 @@ const TAXA_LABELS = {
 };
 
 const map = L.map('map', { zoomControl: true }).setView([57.7089, 11.9746], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap-bidragsgivare',
   maxZoom: 19
-}).addTo(map);
+});
+const voyagerLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO',
+  subdomains: 'abcd',
+  maxZoom: 20
+});
+
+// Laddar om tiles som misslyckas (t.ex. tillfällig strypning av OSM:s gratis-server) med stigande fördröjning
+function addTileRetry(layer, maxRetries = 5, baseDelayMs = 3000) {
+  const retryCounts = new WeakMap();
+  layer.on('tileerror', (e) => {
+    const tile = e.tile;
+    if (!tile) return;
+    const attempt = (retryCounts.get(tile) || 0) + 1;
+    if (attempt > maxRetries) return;
+    retryCounts.set(tile, attempt);
+    const baseSrc = tile.src.split('?')[0];
+    setTimeout(() => {
+      tile.src = baseSrc + '?retry=' + Date.now();
+    }, baseDelayMs * attempt);
+  });
+  layer.on('tileload', (e) => {
+    if (e.tile) retryCounts.delete(e.tile);
+  });
+}
+addTileRetry(osmLayer);
+addTileRetry(voyagerLayer);
+
+osmLayer.addTo(map);
+L.control.layers(
+  { "Standard": osmLayer, "Voyager": voyagerLayer },
+  null,
+  { position: 'topleft', collapsed: false }
+).addTo(map);
+
+// ---- Dragbar sidopanel (desktop) ----
+(function () {
+  const MIN_WIDTH = 240;
+  const MAX_WIDTH = 480;
+  const resizer = document.getElementById('sidebar-resizer');
+  const sidebarEl = document.getElementById('sidebar');
+  let dragging = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  try {
+    const saved = localStorage.getItem('sidebarWidth');
+    if (saved) document.documentElement.style.setProperty('--sidebar-width', saved);
+  } catch (e) { /* ignorera */ }
+
+  resizer.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startWidth = sidebarEl.getBoundingClientRect().width;
+    resizer.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (e.clientX - startX)));
+    document.documentElement.style.setProperty('--sidebar-width', newWidth + 'px');
+    map.invalidateSize();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    try {
+      localStorage.setItem('sidebarWidth', document.documentElement.style.getPropertyValue('--sidebar-width'));
+    } catch (e) { /* ignorera */ }
+    map.invalidateSize();
+  });
+})();
 
 const layerGroups = {};   // taxa -> L.LayerGroup
-const freeGroup = L.layerGroup().addTo(map);
+const featureLayers = {}; // p.Id -> [L.Layer, ...] - för att kunna highlighta rätt objekt vid hover i listan
+const featureCoords = {}; // p.Id -> [lat, lng] - för att kunna rita fågelvägslinjen vid highlight
+const freeGroupsByMaxTime = {}; // maxtidsetikett -> L.layerGroup
+// Ljusgrön (kortast maxtid) till mörkgrön (längst maxtid) - slutgiltigt tilldelad i finalizeFreeColors()
+const GREEN_PALETTE = ["#b7e8a0", "#93d97a", "#6fca56", "#4bbb3a", "#2fa625", "#1f8a1a", "#136611", "#0a4d0a"];
+const freeGroupColors = {}; // maxtidsetikett -> färg, satt av finalizeFreeColors()
+function colorForFreeGroup(label) {
+  return freeGroupColors[label] || GREEN_PALETTE[0];
+}
+
+// Sorterar alla kända gratisgrupper efter maxtid (kortast först) och tilldelar gröna nyanser i den ordningen.
+// Ritar om redan skapade lager/ikoner så färgen stämmer även för sådant som laddats innan alla grupper var kända.
+function finalizeFreeColors() {
+  const labels = Object.keys(freeGroupsByMaxTime).sort((a, b) => {
+    const am = parseMaxParkingMinutes(a) ?? Infinity;
+    const bm = parseMaxParkingMinutes(b) ?? Infinity;
+    return am - bm;
+  });
+  labels.forEach((label, idx) => {
+    const color = GREEN_PALETTE[idx % GREEN_PALETTE.length];
+    freeGroupColors[label] = color;
+    freeGroupsByMaxTime[label].eachLayer(layer => {
+      if (layer._isOutline) return; // svart konturlinje - ska inte färgas om
+      if (layer instanceof L.Polygon) {
+        layer.setStyle({ fillColor: color });
+      } else if (layer instanceof L.Polyline) {
+        layer.setStyle({ color });
+      } else if (layer.setIcon) {
+        layer.setIcon(makeTriangleIcon(color));
+      }
+    });
+  });
+}
 let allTollFeatures = [];
 let allTimeFeatures = [];
 
@@ -183,6 +416,363 @@ function extractTaxa(chargeStr) {
   if (!chargeStr) return null;
   const m = chargeStr.match(/Taxa\s+(\w+)/i);
   return m ? m[1].toUpperCase() : null;
+}
+
+// ---- Kostnadsparsning och -beräkning ----
+// Tolkar strängar av typen "34 kr/tim 8-22 alla dagar. Övrig tid: 2 kr/tim. Maxtaxa 50 kr/dag"
+const COST_RE = /(\d+)\s*kr\/(tim|30\s*min)\s+(\d{1,2})\s*-\s*(\d{1,2})\s+alla dagar\s*[.,]?\s*(?:Övrig tid:\s*(\d+)\s*kr\/tim)?\s*[.,]?\s*(?:[Mm]axtaxa\s*(\d+)\s*kr\/dag)?/;
+
+function parseCostString(costStr) {
+  if (!costStr) return null;
+  const m = costStr.match(COST_RE);
+  if (!m) return null;
+  const dayRate = parseFloat(m[1]);
+  const dayUnitMinutes = m[2].replace(/\s/g, '') === '30min' ? 30 : 60;
+  const dayStart = parseInt(m[3]);
+  const dayEnd = parseInt(m[4]);
+  const nightRate = m[5] !== undefined ? parseFloat(m[5]) : 0;
+  const maxTaxa = m[6] !== undefined ? parseFloat(m[6]) : null;
+  return {
+    dayRatePerMinute: dayRate / dayUnitMinutes,
+    nightRatePerMinute: nightRate / 60,
+    dayStart, dayEnd, maxTaxa
+  };
+}
+
+// Räknar ihop kostnad från "start" och durationHours timmar framåt, med maxtaxa applicerad per kalenderdygn
+function computeCost(parsed, start, durationHours) {
+  if (!parsed) return null;
+  let remainingMinutes = Math.round(durationHours * 60);
+  let cursor = new Date(start);
+  const dailyCost = {};
+  while (remainingMinutes > 0) {
+    const dayKey = cursor.toDateString();
+    const hour = cursor.getHours() + cursor.getMinutes() / 60;
+    const inDayWindow = hour >= parsed.dayStart && hour < parsed.dayEnd;
+    const ratePerMinute = inDayWindow ? parsed.dayRatePerMinute : parsed.nightRatePerMinute;
+    dailyCost[dayKey] = (dailyCost[dayKey] || 0) + ratePerMinute;
+    cursor = new Date(cursor.getTime() + 60000);
+    remainingMinutes -= 1;
+  }
+  let total = 0;
+  for (const day in dailyCost) {
+    let cost = dailyCost[day];
+    if (parsed.maxTaxa !== null) cost = Math.min(cost, parsed.maxTaxa);
+    total += cost;
+  }
+  return Math.round(total);
+}
+
+// Ojämna tidssteg: kvart upp till 1 tim, halvtimme upp till 6 tim, sedan 2-timmars hopp
+const DURATION_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 12];
+
+// Den tidpunkt alla kostnads- och maxtidsberäkningar utgår från. Uppdateras manuellt (knapp) eller var 60:e sekund.
+let calculationTime = new Date();
+
+function formatTime(date) {
+  return String(date.getHours()).padStart(2, '0') + ":" + String(date.getMinutes()).padStart(2, '0');
+}
+
+function refreshCalculationTime() {
+  calculationTime = new Date();
+  const el = document.getElementById('calc-time');
+  if (el) el.textContent = formatTime(calculationTime);
+  updateCosts();
+  renderNearestList();
+  updateListVisibility();
+}
+
+function formatDuration(hours) {
+  if (hours < 1) return Math.round(hours * 60) + " min";
+  const wholePart = Math.floor(hours);
+  const hasHalf = (hours - wholePart) >= 0.4;
+  return (hasHalf ? (wholePart + ",5") : wholePart) + " tim";
+}
+
+// Tolkar textfält av typen "24 tim", "2 tim", "30 min", "7 dygn" till minuter
+function parseMaxParkingMinutes(str) {
+  if (!str) return null;
+  const m = str.match(/(\d+)\s*(min|tim|dygn)/i);
+  if (!m) return null;
+  const value = parseInt(m[1]);
+  const unit = m[2].toLowerCase();
+  if (unit === 'min') return value;
+  if (unit === 'tim') return value * 60;
+  if (unit === 'dygn') return value * 24 * 60;
+  return null;
+}
+
+const parsedCostByTaxa = {};      // taxa -> parsed cost-struktur
+const rawCostTextByTaxa = {};     // taxa -> ursprunglig text, t.ex. "34 kr/tim 8-22 alla dagar. Övrig tid: 2 kr/tim"
+const maxMinutesByTaxa = {};      // taxa -> max tillåten parkeringstid i minuter
+const maxTimeLabelByTaxa = {};    // taxa -> ursprunglig text, t.ex. "30 min"
+const maxTimeLimitationByTaxa = {}; // taxa -> text om vilka dagar/tider maxtiden gäller
+
+// ---- Avstånd ----
+let referencePoint = null; // { lat, lng } - sätts av "Hitta mig"
+
+function haversineMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(m) {
+  if (m < 1000) return Math.round(m / 10) * 10 + " m";
+  return (m / 1000).toFixed(1).replace('.', ',') + " km";
+}
+
+// Tolkar t.ex. "...klockan 08.00 - 22.00..." ur MaxParkingTimeLimitation till start/sluttimme
+function parseRestrictionWindow(text) {
+  if (!text) return null;
+  const m = text.match(/klockan\s+(\d{1,2})[.:](\d{2})\s*-\s*(\d{1,2})[.:](\d{2})/);
+  if (!m) return null;
+  return {
+    startHour: parseInt(m[1]) + parseInt(m[2]) / 60,
+    endHour: parseInt(m[3]) + parseInt(m[4]) / 60
+  };
+}
+
+// Kollar om någon del av den valda parkeringsperioden (från "start", "durationHours" timmar framåt)
+// faller inom det klockslagsfönster då maxtidsregeln gäller. Om fönstret är 00.00-24.00 gäller den alltid.
+function maxTimeRestrictionApplies(restriction, start, durationHours) {
+  if (!restriction) return true; // okänt fönster - anta att regeln gäller, säkraste antagandet
+  if (restriction.startHour <= 0 && restriction.endHour >= 24) return true;
+  let cursor = new Date(start);
+  let remainingMinutes = Math.round(durationHours * 60);
+  while (remainingMinutes > 0) {
+    const hour = cursor.getHours() + cursor.getMinutes() / 60;
+    if (hour >= restriction.startHour && hour < restriction.endHour) return true;
+    cursor = new Date(cursor.getTime() + 60000);
+    remainingMinutes -= 1;
+  }
+  return false;
+}
+
+function costOrMaxLabel(taxa, durationHours) {
+  const durationMinutes = durationHours * 60;
+  const maxMinutes = maxMinutesByTaxa[taxa];
+  const restriction = parseRestrictionWindow(maxTimeLimitationByTaxa[taxa]);
+  const restrictionApplies = maxTimeRestrictionApplies(restriction, calculationTime, durationHours);
+  if (restrictionApplies && maxMinutes !== undefined && maxMinutes !== null && durationMinutes > maxMinutes) {
+    return { text: "Max " + (maxTimeLabelByTaxa[taxa] || (maxMinutes + " min")), warn: true };
+  }
+  const cost = computeCost(parsedCostByTaxa[taxa], calculationTime, durationHours);
+  return { text: cost === null ? "" : cost + " kr", warn: false };
+}
+
+function freeCostOrMaxLabel(maxTimeLabel, durationHours) {
+  const durationMinutes = durationHours * 60;
+  const maxMinutes = parseMaxParkingMinutes(maxTimeLabel);
+  if (maxMinutes !== null && durationMinutes > maxMinutes) {
+    return { text: "Max " + maxTimeLabel, warn: true };
+  }
+  return { text: "Gratis " + maxTimeLabel, warn: false };
+}
+
+function isTaxaChecked(taxa) {
+  const cb = document.querySelector(`#combined-list input[data-taxa="${taxa}"]`);
+  return cb ? cb.checked : true;
+}
+
+function isFreeChecked(label) {
+  const cb = document.querySelector(`#combined-list input[data-freelabel="${label}"]`);
+  return cb ? cb.checked : true;
+}
+
+// ---- Highlight av objekt på kartan vid hover i Närmast dig-listan ----
+let currentHighlightLayers = [];
+
+function clearHighlight() {
+  currentHighlightLayers.forEach(l => map.removeLayer(l));
+  currentHighlightLayers = [];
+}
+
+function highlightFeature(id) {
+  clearHighlight();
+  const layers = featureLayers[id];
+  if (!layers) return;
+  const HIGHLIGHT_COLOR = '#e02020';
+  layers.forEach(orig => {
+    let hl = null;
+    if (orig instanceof L.Polygon) {
+      hl = L.polygon(orig.getLatLngs(), { color: HIGHLIGHT_COLOR, weight: 6, fillOpacity: 0, opacity: 0.9, interactive: false });
+    } else if (orig instanceof L.Polyline) {
+      hl = L.polyline(orig.getLatLngs(), { color: HIGHLIGHT_COLOR, weight: 9, opacity: 0.9, interactive: false });
+    } else if (orig instanceof L.Marker) {
+      hl = L.circleMarker(orig.getLatLng(), { radius: 13, color: HIGHLIGHT_COLOR, weight: 3, fillOpacity: 0, interactive: false });
+    }
+    if (hl) {
+      hl.addTo(map);
+      currentHighlightLayers.push(hl);
+    }
+  });
+  // Se till att originallagren (den färgade linjen/punkten) ligger ovanpå den röda ramen
+  layers.forEach(orig => { if (orig.bringToFront) orig.bringToFront(); });
+
+  // Tunn fågelvägslinje mellan referenspunkten (Hitta mig / sökt plats) och den highlightade parkeringen
+  if (referencePoint && featureCoords[id]) {
+    const line = L.polyline(
+      [[referencePoint.lat, referencePoint.lng], featureCoords[id]],
+      { color: HIGHLIGHT_COLOR, weight: 1.5, opacity: 0.8, interactive: false }
+    ).addTo(map);
+    currentHighlightLayers.push(line);
+  }
+}
+
+// Hämtar gångavstånd (meter) från en startpunkt till flera punkter via OSRM:s gratis table-tjänst.
+// OSRM vill ha koordinater som "lng,lat" (omvänt mot Leaflets lat,lng).
+async function fetchWalkingDistances(origin, points) {
+  if (points.length === 0) return [];
+  const coordsStr = [origin, ...points].map(p => `${p.lng},${p.lat}`).join(';');
+  const url = `https://router.project-osrm.org/table/v1/foot/${coordsStr}?sources=0&annotations=distance`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error('OSRM svarade med fel: ' + res.status);
+    const data = await res.json();
+    if (!data.distances || !data.distances[0]) throw new Error('Inget avståndsdata i OSRM-svaret');
+    return data.distances[0].slice(1); // index 0 är avståndet till startpunkten själv
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+let nearestListRequestId = 0;
+const NEAREST_POOL_SIZE = 50; // hur många av de fågelvägen-närmaste som skickas till OSRM för riktig ruttberäkning
+
+function triangleSwatchSvg(color) {
+  return `<svg width="12" height="11" viewBox="0 0 12 11" style="flex-shrink:0;"><polygon points="6,0 12,11 0,11" fill="${color}" stroke="#000000" stroke-width="1"/></svg>`;
+}
+
+async function renderNearestList() {
+  clearHighlight();
+  const container = document.getElementById('nearest-list');
+  if (!referencePoint) {
+    container.innerHTML = '<p style="font-size:12px;color:var(--muted);">Klicka "Hitta mig" ovan för att se de närmaste parkeringarna, sorterade efter avstånd.</p>';
+    return;
+  }
+  const requestId = ++nearestListRequestId;
+  const stepIndex = parseInt(document.getElementById('duration-slider').value);
+  const durationHours = DURATION_STEPS[stepIndex];
+
+  const tollCandidates = allTollFeatures
+    .filter(f => f.Lat && f.Long)
+    .filter(f => isTaxaChecked(extractTaxa(f.ParkingCharge)))
+    .filter(f => !costOrMaxLabel(extractTaxa(f.ParkingCharge), durationHours).warn)
+    .map(f => ({ f, isFree: false, straightDist: haversineMeters(referencePoint.lat, referencePoint.lng, f.Lat, f.Long) }));
+
+  const freeCandidates = allTimeFeatures
+    .filter(f => f.Lat && f.Long)
+    .filter(f => isFreeChecked(f.MaxParkingTime || "okänd maxtid"))
+    .filter(f => !freeCostOrMaxLabel(f.MaxParkingTime || "okänd maxtid", durationHours).warn)
+    .map(f => ({ f, isFree: true, straightDist: haversineMeters(referencePoint.lat, referencePoint.lng, f.Lat, f.Long) }));
+
+  const allCandidates = tollCandidates.concat(freeCandidates).sort((a, b) => a.straightDist - b.straightDist);
+
+  if (allCandidates.length === 0) {
+    container.innerHTML = '<p style="font-size:12px;color:var(--muted);">Inga synliga parkeringar i närheten passar. Prova en kortare tid eller kryssa i fler taxor.</p>';
+    return;
+  }
+
+  const pool = allCandidates.slice(0, NEAREST_POOL_SIZE);
+  container.innerHTML = '<p style="font-size:12px;color:var(--muted);">Beräknar gångavstånd…</p>';
+
+  let realDistances = null;
+  try {
+    realDistances = await fetchWalkingDistances(
+      referencePoint,
+      pool.map(c => ({ lat: c.f.Lat, lng: c.f.Long }))
+    );
+  } catch (e) {
+    realDistances = null;
+  }
+
+  // Om ett nyare anrop har startats medan vi väntade på svar - kasta det här resultatet, det är inaktuellt
+  if (requestId !== nearestListRequestId) return;
+
+  let usedReal = false;
+  let ranked;
+  if (realDistances && realDistances.length === pool.length) {
+    ranked = pool.map((c, i) => {
+      const real = realDistances[i];
+      const hasReal = real !== null && real !== undefined;
+      if (hasReal) usedReal = true;
+      return { ...c, dist: hasReal ? real : c.straightDist };
+    });
+    ranked.sort((a, b) => a.dist - b.dist);
+  } else {
+    ranked = pool.map(c => ({ ...c, dist: c.straightDist }));
+  }
+  ranked = ranked.slice(0, 30);
+
+  container.innerHTML = "";
+  const statusLine = document.createElement('p');
+  statusLine.style.cssText = "font-size:11px; color:var(--muted); margin:0 0 8px;";
+  statusLine.textContent = usedReal
+    ? "Avstånd är gångväg via gatunätet."
+    : "Gångvägstjänsten svarade inte - avstånd visas fågelvägen.";
+  container.appendChild(statusLine);
+
+  ranked.forEach(({ f, isFree, dist }) => {
+    let color, text;
+    if (isFree) {
+      const label = f.MaxParkingTime || "okänd maxtid";
+      color = colorForFreeGroup(label);
+      ({ text } = freeCostOrMaxLabel(label, durationHours));
+    } else {
+      const taxa = extractTaxa(f.ParkingCharge);
+      color = TAXA_COLORS[taxa] || "#999";
+      ({ text } = costOrMaxLabel(taxa, durationHours));
+    }
+    const row = document.createElement('div');
+    row.className = 'nearest-row';
+    row.innerHTML = `
+      ${isFree ? triangleSwatchSvg(color) : `<span class="swatch" style="background:${color}"></span>`}
+      <span class="nearest-name">${f.Name || "Okänd gata"}</span>
+      <span class="nearest-dist">${formatDistance(dist)}</span>
+      <span class="nearest-cost">${text}</span>
+    `;
+    row.addEventListener('mouseenter', () => {
+      if (f.Id) highlightFeature(f.Id);
+    });
+    row.addEventListener('mouseleave', clearHighlight);
+    row.addEventListener('click', () => {
+      if (referencePoint) {
+        const bounds = L.latLngBounds(
+          [referencePoint.lat, referencePoint.lng],
+          [f.Lat, f.Long]
+        );
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 18 });
+      } else {
+        map.setView([f.Lat, f.Long], 18);
+      }
+    });
+    container.appendChild(row);
+  });
+}
+
+// Sliderns 'input'-event kan avfyras dussintals gånger per sekund under drag - debounce nätverksanropet
+// (OSRM:s gratisserver ber om max 1 anrop/sekund) medan kostnader och synlighet uppdateras direkt.
+let nearestListDebounceTimer = null;
+function scheduleRenderNearestList(delay = 400) {
+  clearTimeout(nearestListDebounceTimer);
+  nearestListDebounceTimer = setTimeout(() => renderNearestList(), delay);
+}
+
+function updateCosts() {
+  const stepIndex = parseInt(document.getElementById('duration-slider').value);
+  const durationHours = DURATION_STEPS[stepIndex];
+  Object.keys(parsedCostByTaxa).forEach(taxa => {
+    const el = document.getElementById('cost-' + taxa);
+    if (!el) return;
+    const { text } = costOrMaxLabel(taxa, durationHours);
+    el.textContent = text;
+  });
 }
 
 function makeIcon(color) {
@@ -194,43 +784,272 @@ function makeIcon(color) {
   });
 }
 
+function makeTriangleIcon(color) {
+  return L.divIcon({
+    className: '',
+    html: `<svg width="16" height="15" viewBox="0 0 16 15"><polygon points="8,0 16,15 0,15" fill="${color}" stroke="#000000" stroke-width="1.3"/></svg>`,
+    iconSize: [16, 15],
+    iconAnchor: [8, 11]
+  });
+}
+
+// ---- Enkel WKT-parser för de geometrityper Göteborgs API returnerar ----
+// WKT-koordinater är "lng lat", Leaflet vill ha [lat, lng] - vi vänder på ordningen.
+function parseCoordPair(str) {
+  const parts = str.trim().split(/\s+/).map(Number);
+  return [parts[1], parts[0]]; // [lat, lng]
+}
+
+function parseCoordList(str) {
+  return str.split(',').map(parseCoordPair);
+}
+
+// Delar upp en sträng i toppnivågrupper separerade av kommatecken, med hänsyn till parenteser
+function splitTopLevel(str) {
+  const result = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === '(') depth++;
+    else if (str[i] === ')') depth--;
+    else if (str[i] === ',' && depth === 0) {
+      result.push(str.slice(start, i));
+      start = i + 1;
+    }
+  }
+  result.push(str.slice(start));
+  return result;
+}
+
+function stripOuterParens(str) {
+  str = str.trim();
+  if (str.startsWith('(') && str.endsWith(')')) return str.slice(1, -1).trim();
+  return str;
+}
+
+// Returnerar en lista av { type: 'line'|'polygon', latlngs: [...] }
+function parseWKT(wkt) {
+  if (!wkt) return [];
+  wkt = wkt.trim();
+  const shapes = [];
+
+  function parseOne(text) {
+    const typeMatch = text.match(/^\s*([A-Z]+)\s*\(/i);
+    if (!typeMatch) return;
+    const type = typeMatch[1].toUpperCase();
+    const body = text.slice(typeMatch[0].length - 1);
+    const inner = stripOuterParens(body);
+
+    if (type === 'LINESTRING') {
+      shapes.push({ type: 'line', latlngs: parseCoordList(inner) });
+    } else if (type === 'MULTILINESTRING') {
+      splitTopLevel(inner).forEach(part => {
+        shapes.push({ type: 'line', latlngs: parseCoordList(stripOuterParens(part)) });
+      });
+    } else if (type === 'POLYGON') {
+      const rings = splitTopLevel(inner).map(r => parseCoordList(stripOuterParens(r)));
+      shapes.push({ type: 'polygon', latlngs: rings });
+    } else if (type === 'MULTIPOLYGON') {
+      splitTopLevel(inner).forEach(polyPart => {
+        const polyInner = stripOuterParens(polyPart);
+        const rings = splitTopLevel(polyInner).map(r => parseCoordList(stripOuterParens(r)));
+        shapes.push({ type: 'polygon', latlngs: rings });
+      });
+    } else if (type === 'GEOMETRYCOLLECTION') {
+      splitTopLevel(inner).forEach(part => parseOne(part.trim()));
+    }
+  }
+
+  parseOne(wkt);
+  return shapes;
+}
+
 function directionsLinks(lat, lng) {
   const gmaps = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
   const waze = `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`;
-  return `<a class="directions-link" href="${gmaps}" target="_blank" rel="noopener">Google Maps →</a>
-          <a class="directions-link" href="${waze}" target="_blank" rel="noopener">Waze →</a>`;
+  return `<div class="popup-directions"><a class="directions-link" href="${gmaps}" target="_blank" rel="noopener">Google Maps →</a><a class="directions-link" href="${waze}" target="_blank" rel="noopener">Waze →</a></div>`;
+}
+
+// Delar upp en rå kostnadstext i separata rader: dagstaxa, "Övrig tid", "Maxtaxa" var för sig
+function formatCostLines(rawCost) {
+  if (!rawCost) return [];
+  return rawCost.split(/\.\s+|,\s+(?=[Mm]axtaxa)/).map(s => s.trim()).filter(Boolean);
+}
+
+function popupHtml(name, taxaLabel, taxaColor, rawCost, spacesText, lat, lng, isFree) {
+  const swatch = isFree
+    ? `<svg width="10" height="9" viewBox="0 0 10 9" style="vertical-align:-1px; margin-right:5px;"><polygon points="5,0 10,9 0,9" fill="${taxaColor}" stroke="#000000" stroke-width="0.8"/></svg>`
+    : `<span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:${taxaColor}; margin-right:5px; vertical-align:-1px;"></span>`;
+  const costLines = formatCostLines(rawCost);
+  if (spacesText) costLines.push(spacesText);
+  const costHtml = costLines.length ? `<p class="popup-cost">${costLines.join('<br>')}</p>` : '';
+  return `<p class="popup-title">${name || "Okänd gata"}</p><p class="popup-taxa">${swatch}${taxaLabel}</p>${costHtml}${directionsLinks(lat, lng)}`;
+}
+
+// Highlightar objektet direkt på kartan när musen hovrar över det (samma effekt som hover i listan)
+function attachHoverHighlight(layer, id) {
+  if (!id) return;
+  layer.on('mouseover', () => highlightFeature(id));
+  layer.on('mouseout', () => clearHighlight());
+}
+
+// Binder en popup till ett lager och räknar ut avstånd till vald destination (referencePoint) varje gång den öppnas
+function attachDistancePopup(layer, baseHtml, lat, lng) {
+  layer.bindPopup(baseHtml);
+  layer.on('popupopen', () => {
+    if (!referencePoint) return; // ingen destination vald ännu - visa inget avstånd
+    const meters = haversineMeters(referencePoint.lat, referencePoint.lng, lat, lng);
+    layer.getPopup().setContent(
+      baseHtml + `<p class="popup-cost" style="margin-top:6px;">Avstånd till mål (fågelvägen): ${formatDistance(meters)}</p>`
+    );
+  });
 }
 
 function addTollMarker(p) {
   const taxa = extractTaxa(p.ParkingCharge);
-  if (!taxa || !p.Lat || !p.Long) return;
+  if (!taxa) return;
+  if (p.Id && p.Lat && p.Long) featureCoords[p.Id] = [p.Lat, p.Long];
   if (!layerGroups[taxa]) layerGroups[taxa] = L.layerGroup();
+  if (!parsedCostByTaxa[taxa]) {
+    const parsed = parseCostString(p.ParkingCost);
+    if (parsed) parsedCostByTaxa[taxa] = parsed;
+    rawCostTextByTaxa[taxa] = p.ParkingCost || null;
+  }
+  if (maxMinutesByTaxa[taxa] === undefined) {
+    const maxMin = parseMaxParkingMinutes(p.MaxParkingTime);
+    maxMinutesByTaxa[taxa] = maxMin;
+    maxTimeLabelByTaxa[taxa] = p.MaxParkingTime || null;
+    maxTimeLimitationByTaxa[taxa] = p.MaxParkingTimeLimitation || null;
+  }
   const color = TAXA_COLORS[taxa] || "#999";
-  const marker = L.marker([p.Lat, p.Long], { icon: makeIcon(color) });
+  const label = TAXA_LABELS[taxa] || ("Taxa " + taxa);
   const spaces = p.ParkingSpaces ? `${p.ParkingSpaces} platser` : "";
-  marker.bindPopup(`
-    <p class="popup-title">${p.Name || "Okänd gata"}</p>
-    <p class="popup-taxa">${TAXA_LABELS[taxa] || ("Taxa " + taxa)}</p>
-    <p class="popup-cost">${p.ParkingCost || ""}${spaces ? " · " + spaces : ""}</p>
-    ${directionsLinks(p.Lat, p.Long)}
-  `);
-  marker.addTo(layerGroups[taxa]);
+  const popup = popupHtml(p.Name, label, color, p.ParkingCost, spaces, p.Lat, p.Long, false);
+
+  const shapes = parseWKT(p.WKT);
+  if (shapes.length > 0) {
+    shapes.forEach(shape => {
+      let layer;
+      if (shape.type === 'polygon') {
+        layer = L.polygon(shape.latlngs, { color, weight: 2, fillColor: color, fillOpacity: 0.25 });
+      } else {
+        layer = L.polyline(shape.latlngs, { color, weight: 5, opacity: 0.85 });
+      }
+      layer.bindPopup(popup);
+      layer.addTo(layerGroups[taxa]);
+      if (p.Id) (featureLayers[p.Id] = featureLayers[p.Id] || []).push(layer);
+    });
+  } else if (p.Lat && p.Long) {
+    const marker = L.marker([p.Lat, p.Long], { icon: makeIcon(color) }).bindPopup(popup).addTo(layerGroups[taxa]);
+    if (p.Id) (featureLayers[p.Id] = featureLayers[p.Id] || []).push(marker);
+  }
 }
 
 function addFreeMarker(p) {
-  if (!p.Lat || !p.Long) return;
-  const marker = L.marker([p.Lat, p.Long], { icon: makeIcon("#4fb3a9") });
+  const label = p.MaxParkingTime || "Okänd maxtid";
+  if (p.Id && p.Lat && p.Long) featureCoords[p.Id] = [p.Lat, p.Long];
+  if (!freeGroupsByMaxTime[label]) freeGroupsByMaxTime[label] = L.layerGroup();
+  const color = colorForFreeGroup(label);
   const spaces = p.ParkingSpaces ? `${p.ParkingSpaces} platser` : "";
-  marker.bindPopup(`
-    <p class="popup-title">${p.Name || "Okänd gata"}</p>
-    <p class="popup-taxa" style="color:#4fb3a9;">Gratis (tidsbegränsad)</p>
-    <p class="popup-cost">${p.MaxParkingTime ? "Max " + p.MaxParkingTime : ""}${spaces ? " · " + spaces : ""}</p>
-    ${directionsLinks(p.Lat, p.Long)}
-  `);
-  marker.addTo(freeGroup);
+  const popup = popupHtml(p.Name, `Gratis ${label}`, color, null, spaces, p.Lat, p.Long, true);
+
+  const shapes = parseWKT(p.WKT);
+  if (shapes.length > 0) {
+    shapes.forEach(shape => {
+      let layer;
+      if (shape.type === 'polygon') {
+        layer = L.polygon(shape.latlngs, { color: '#000000', weight: 2, fillColor: color, fillOpacity: 0.3 });
+      } else {
+        // Svart, bredare linje underifrån ger en kontur-effekt runt den gröna linjen ovanpå
+        const outline = L.polyline(shape.latlngs, { color: '#000000', weight: 8, opacity: 0.85, interactive: false });
+        outline._isOutline = true;
+        outline.addTo(freeGroupsByMaxTime[label]);
+        layer = L.polyline(shape.latlngs, { color, weight: 4, opacity: 1 });
+      }
+      layer.bindPopup(popup);
+      layer.addTo(freeGroupsByMaxTime[label]);
+      if (p.Id) (featureLayers[p.Id] = featureLayers[p.Id] || []).push(layer);
+    });
+  } else if (p.Lat && p.Long) {
+    const marker = L.marker([p.Lat, p.Long], { icon: makeTriangleIcon(color) }).bindPopup(popup).addTo(freeGroupsByMaxTime[label]);
+    if (p.Id) (featureLayers[p.Id] = featureLayers[p.Id] || []).push(marker);
+  }
 }
 
-function buildSidebar() {
+let openTaxaTooltip = null;
+const supportsHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+function setOpenTaxaTooltip(taxa) {
+  if (openTaxaTooltip && openTaxaTooltip !== taxa) {
+    const prev = document.getElementById('tooltip-' + openTaxaTooltip);
+    if (prev) prev.classList.remove('visible');
+  }
+  openTaxaTooltip = taxa;
+  const el = document.getElementById('tooltip-' + taxa);
+  if (el) el.classList.add('visible');
+}
+
+function closeTaxaTooltip(taxa) {
+  const el = document.getElementById('tooltip-' + taxa);
+  if (el) el.classList.remove('visible');
+  if (openTaxaTooltip === taxa) openTaxaTooltip = null;
+}
+
+function toggleTaxaTooltip(taxa) {
+  if (openTaxaTooltip === taxa) closeTaxaTooltip(taxa);
+  else setOpenTaxaTooltip(taxa);
+}
+
+function buildTaxaTooltipContent(taxa) {
+  const costText = rawCostTextByTaxa[taxa] || "Ingen prisinformation tillgänglig.";
+  const maxLabel = maxTimeLabelByTaxa[taxa] || "okänd";
+  const limitation = maxTimeLimitationByTaxa[taxa] || "";
+  return `
+    <div><span class="label">Kostnad</span><br>${costText}</div>
+    <div style="margin-top:6px;"><span class="label">Maxtid</span><br>${maxLabel}${limitation ? " — " + limitation : ""}</div>
+    <div style="margin-top:6px; color:var(--muted); font-size:11px;">Enskilda gator inom taxan kan ha ytterligare undantag, t.ex. städdagar eller lokala P-förbud.</div>
+  `;
+}
+
+document.addEventListener('click', (e) => {
+  if (openTaxaTooltip && !e.target.closest('.taxa-info-icon') && !e.target.closest('.taxa-tooltip')) {
+    closeTaxaTooltip(openTaxaTooltip);
+  }
+});
+
+function buildCombinedSidebar() {
+  const container = document.getElementById('combined-list');
+  container.innerHTML = "";
+
+  // Gratisgrupper överst, sorterade efter kortast maxtid
+  const freeLabels = Object.keys(freeGroupsByMaxTime).sort((a, b) => {
+    const am = parseMaxParkingMinutes(a) ?? Infinity;
+    const bm = parseMaxParkingMinutes(b) ?? Infinity;
+    return am - bm;
+  });
+  freeLabels.forEach(label => {
+    const color = colorForFreeGroup(label);
+    const wrap = document.createElement('div');
+    wrap.className = 'taxa-row-wrap';
+    const row = document.createElement('label');
+    row.className = 'taxa-row';
+    row.innerHTML = `
+      <input type="checkbox" checked data-freelabel="${label}">
+      ${triangleSwatchSvg(color)}
+      <span>Gratis ${label}</span>
+    `;
+    const checkbox = row.querySelector('input');
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) map.addLayer(freeGroupsByMaxTime[label]);
+      else map.removeLayer(freeGroupsByMaxTime[label]);
+      updateCombinedBulkButtonLabel();
+      renderNearestList();
+    });
+    wrap.appendChild(row);
+    container.appendChild(wrap);
+    map.addLayer(freeGroupsByMaxTime[label]);
+  });
+
+  // Sedan taxor, sorterade numeriskt
   const presentTaxa = Object.keys(layerGroups).sort((a, b) => {
     const an = parseInt(a), bn = parseInt(b);
     if (isNaN(an) && isNaN(bn)) return a.localeCompare(b);
@@ -238,37 +1057,143 @@ function buildSidebar() {
     if (isNaN(bn)) return -1;
     return an - bn;
   });
-  const list = document.getElementById('taxa-list');
-  list.innerHTML = "";
   presentTaxa.forEach(taxa => {
     const color = TAXA_COLORS[taxa] || "#999";
+    const wrap = document.createElement('div');
+    wrap.className = 'taxa-row-wrap';
+
     const row = document.createElement('label');
     row.className = 'taxa-row';
     row.innerHTML = `
       <input type="checkbox" checked data-taxa="${taxa}">
       <span class="swatch" style="background:${color}"></span>
-      <span>${TAXA_LABELS[taxa] || ("Taxa " + taxa)}</span>
+      <span style="flex:1;">${TAXA_LABELS[taxa] || ("Taxa " + taxa)}</span>
+      <span class="taxa-cost" id="cost-${taxa}"></span>
+      <span class="taxa-info-icon" data-taxa="${taxa}" title="Visa taxans regler">ⓘ</span>
     `;
     const checkbox = row.querySelector('input');
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) map.addLayer(layerGroups[taxa]);
       else map.removeLayer(layerGroups[taxa]);
+      updateCombinedBulkButtonLabel();
+      renderNearestList();
     });
-    list.appendChild(row);
+
+    const infoIcon = row.querySelector('.taxa-info-icon');
+    infoIcon.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleTaxaTooltip(taxa);
+    });
+    if (supportsHover) {
+      infoIcon.addEventListener('mouseenter', () => setOpenTaxaTooltip(taxa));
+      infoIcon.addEventListener('mouseleave', () => closeTaxaTooltip(taxa));
+    }
+
+    wrap.appendChild(row);
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'taxa-tooltip';
+    tooltip.id = 'tooltip-' + taxa;
+    tooltip.innerHTML = buildTaxaTooltipContent(taxa);
+    wrap.appendChild(tooltip);
+
+    container.appendChild(wrap);
     map.addLayer(layerGroups[taxa]);
   });
 
-  document.getElementById('select-all').addEventListener('click', () => {
-    document.querySelectorAll('#taxa-list input').forEach(cb => { cb.checked = true; map.addLayer(layerGroups[cb.dataset.taxa]); });
-  });
-  document.getElementById('select-none').addEventListener('click', () => {
-    document.querySelectorAll('#taxa-list input').forEach(cb => { cb.checked = false; map.removeLayer(layerGroups[cb.dataset.taxa]); });
-  });
-  document.getElementById('toggle-free').addEventListener('change', (e) => {
-    if (e.target.checked) map.addLayer(freeGroup);
-    else map.removeLayer(freeGroup);
-  });
+  updateCombinedBulkButtonLabel();
+  updateCosts();
 }
+
+// En rad "passar" om dess grupp (taxa eller gratis-maxtid) tillåter minst den valda parkeringstiden
+function rowFitsDuration(checkbox, durationHours) {
+  if (checkbox.dataset.taxa) return !costOrMaxLabel(checkbox.dataset.taxa, durationHours).warn;
+  if (checkbox.dataset.freelabel) return !freeCostOrMaxLabel(checkbox.dataset.freelabel, durationHours).warn;
+  return true;
+}
+
+function layerGroupForCheckbox(checkbox) {
+  if (checkbox.dataset.taxa) return layerGroups[checkbox.dataset.taxa];
+  if (checkbox.dataset.freelabel) return freeGroupsByMaxTime[checkbox.dataset.freelabel];
+  return null;
+}
+
+function visibleCombinedCheckboxes() {
+  return Array.from(document.querySelectorAll('#combined-list input')).filter(cb => cb.closest('.taxa-row-wrap').style.display !== 'none');
+}
+
+function updateCombinedBulkButtonLabel() {
+  const btn = document.getElementById('combined-bulk-btn');
+  if (!btn) return;
+  const visible = visibleCombinedCheckboxes();
+  if (visible.length === 0) {
+    btn.textContent = "Visa alla";
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = false;
+  btn.textContent = visible.every(cb => cb.checked) ? "Gratis" : "Visa alla";
+}
+
+// Döljer rader (gratis eller taxa) vars maxtid inte räcker till vald parkeringstid, både i listan och på kartan
+function updateListVisibility() {
+  const stepIndex = parseInt(document.getElementById('duration-slider').value);
+  const durationHours = DURATION_STEPS[stepIndex];
+  document.querySelectorAll('#combined-list .taxa-row-wrap').forEach(wrap => {
+    const checkbox = wrap.querySelector('input');
+    const group = layerGroupForCheckbox(checkbox);
+    const fits = rowFitsDuration(checkbox, durationHours);
+    wrap.style.display = fits ? '' : 'none';
+    if (!group) return;
+    if (fits) {
+      if (checkbox.checked) map.addLayer(group);
+    } else {
+      map.removeLayer(group);
+    }
+  });
+  updateCombinedBulkButtonLabel();
+}
+
+document.getElementById('combined-bulk-btn').addEventListener('click', () => {
+  const visible = visibleCombinedCheckboxes();
+  const allChecked = visible.every(cb => cb.checked);
+  if (allChecked) {
+    // Läget var "Gratis" - släck alla Taxa, låt Gratis vara kvar ikryssat
+    visible.forEach(cb => {
+      if (cb.dataset.taxa) {
+        cb.checked = false;
+        const group = layerGroupForCheckbox(cb);
+        if (group) map.removeLayer(group);
+      }
+    });
+  } else {
+    // Läget var "Visa alla" - bocka i allt, både Gratis och Taxa
+    visible.forEach(cb => {
+      cb.checked = true;
+      const group = layerGroupForCheckbox(cb);
+      if (group) map.addLayer(group);
+    });
+  }
+  updateCombinedBulkButtonLabel();
+  renderNearestList();
+  const nearestListEl = document.getElementById('nearest-list');
+  if (nearestListEl) nearestListEl.scrollTop = 0;
+});
+
+
+const durationSlider = document.getElementById('duration-slider');
+const durationLabel = document.getElementById('duration-label');
+durationSlider.addEventListener('input', () => {
+  durationLabel.textContent = formatDuration(DURATION_STEPS[parseInt(durationSlider.value)]);
+  updateCosts();
+  scheduleRenderNearestList();
+  updateListVisibility();
+});
+durationLabel.textContent = formatDuration(DURATION_STEPS[parseInt(durationSlider.value)]);
+document.getElementById('refresh-time-btn').addEventListener('click', refreshCalculationTime);
+document.getElementById('calc-time').textContent = formatTime(calculationTime);
+setInterval(refreshCalculationTime, 300000); // var 5:e minut istället för varje minut
 
 function setStatus(msg) {
   document.getElementById('status').textContent = msg;
@@ -278,10 +1203,17 @@ function setStatus(msg) {
 let userMarker = null;
 const userIcon = L.divIcon({
   className: '',
-  html: `<div style="width:16px;height:16px;border-radius:50%;background:#4a90e2;border:2px solid white;box-shadow:0 0 0 4px rgba(74,144,226,0.35);"></div>`,
-  iconSize: [16, 16],
-  iconAnchor: [8, 8]
+  html: `<div style="width:32px;height:32px;border-radius:50%;background:#4a90e2;border:4px solid white;box-shadow:0 0 0 8px rgba(74,144,226,0.35);"></div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16]
 });
+const searchIcon = L.divIcon({
+  className: '',
+  html: `<div style="width:36px;height:36px;border-radius:50% 50% 50% 0; background:#e94fbb; border:4px solid white; transform:rotate(-45deg);"></div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 36]
+});
+let referenceMarker = null;
 
 document.getElementById('locate-btn').addEventListener('click', () => {
   if (!navigator.geolocation) {
@@ -292,11 +1224,13 @@ document.getElementById('locate-btn').addEventListener('click', () => {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
+      referencePoint = { lat: latitude, lng: longitude };
       if (userMarker) map.removeLayer(userMarker);
       userMarker = L.marker([latitude, longitude], { icon: userIcon, zIndexOffset: 1000 })
         .bindPopup("Du är ungefär här")
         .addTo(map);
       map.setView([latitude, longitude], 16);
+      renderNearestList();
       setStatus("Position hittad");
     },
     (err) => {
@@ -330,12 +1264,182 @@ function jsonp(url, callbackName, onData, onError) {
 }
 
 function finishLoad() {
-  buildSidebar();
+  finalizeFreeColors();
+  buildCombinedSidebar();
+  updateListVisibility();
   const total = allTollFeatures.length + allTimeFeatures.length;
   setStatus(`${total} parkeringar laddade`);
 }
 
+// ---- Sök plats ----
+function setReferencePoint(lat, lng, label) {
+  referencePoint = { lat, lng };
+  if (referenceMarker) map.removeLayer(referenceMarker);
+  referenceMarker = L.marker([lat, lng], { icon: searchIcon, zIndexOffset: 900 })
+    .bindPopup(label || "Vald plats")
+    .addTo(map);
+  renderNearestList();
+}
+
+function uniqueParkingNames() {
+  const seen = new Set();
+  const list = [];
+  allTollFeatures.forEach(f => {
+    if (f.Name && !seen.has(f.Name)) {
+      seen.add(f.Name);
+      list.push(f.Name);
+    }
+  });
+  return list;
+}
+
+const searchInput = document.getElementById('search-input');
+const suggestionsBox = document.getElementById('search-suggestions');
+const searchClearBtn = document.getElementById('search-clear-btn');
+let searchDebounceTimer = null;
+let lastLocalMatches = [];
+
+function updateSearchClearBtn() {
+  searchClearBtn.style.display = searchInput.value.length > 0 ? 'block' : 'none';
+}
+
+searchClearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  updateSearchClearBtn();
+  suggestionsBox.style.display = 'none';
+  searchInput.focus();
+});
+
+// Ritar en cirkel som krymper från stor till en punkt och försvinner - en "inzoomnings"-puls vid hover
+let currentPulseCircle = null;
+let currentPulseFrame = null;
+
+function pulseAtLocation(lat, lng) {
+  if (currentPulseFrame) cancelAnimationFrame(currentPulseFrame);
+  if (currentPulseCircle) { map.removeLayer(currentPulseCircle); currentPulseCircle = null; }
+
+  const startRadius = 400; // pixlar
+  const duration = 700; // ms
+  const circle = L.circleMarker([lat, lng], {
+    radius: startRadius,
+    color: '#e02020',
+    weight: 2,
+    fillColor: '#e02020',
+    fillOpacity: 0.15,
+    opacity: 0.85,
+    interactive: false
+  }).addTo(map);
+  currentPulseCircle = circle;
+
+  const startTime = performance.now();
+  function step(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - t, 2); // avtagande hastighet mot slutet
+    circle.setRadius(Math.max(startRadius * (1 - eased), 0.5));
+    circle.setStyle({ opacity: 0.85 * (1 - t), fillOpacity: 0.15 * (1 - t) });
+    if (t < 1) {
+      currentPulseFrame = requestAnimationFrame(step);
+    } else {
+      map.removeLayer(circle);
+      if (currentPulseCircle === circle) currentPulseCircle = null;
+    }
+  }
+  currentPulseFrame = requestAnimationFrame(step);
+}
+
+function renderSuggestionRow(item) {
+  const row = document.createElement('div');
+  row.style.cssText = "padding:8px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--line);";
+  row.innerHTML = `<span style="color:var(--muted); font-size:10px; text-transform:uppercase; margin-right:6px;">${item.type === 'gata' ? 'Gata' : 'Adress'}</span>${item.label}`;
+  row.addEventListener('mouseenter', () => {
+    row.style.background = 'rgba(0,0,0,0.06)';
+    if (item.type === 'gata') {
+      const match = allTollFeatures.find(f => f.Name === item.label && f.Lat && f.Long);
+      if (match) pulseAtLocation(match.Lat, match.Long);
+    } else if (item.lat && item.lng) {
+      pulseAtLocation(item.lat, item.lng);
+    }
+  });
+  row.addEventListener('mouseleave', () => row.style.background = '');
+  row.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // hindra input-blur innan klicket hinner registreras
+    searchInput.value = item.label;
+    updateSearchClearBtn();
+    suggestionsBox.style.display = 'none';
+    if (item.type === 'gata') {
+      const match = allTollFeatures.find(f => f.Name === item.label && f.Lat && f.Long);
+      if (match) {
+        setReferencePoint(match.Lat, match.Long, match.Name);
+        map.setView([match.Lat, match.Long], 17);
+      }
+    } else {
+      setReferencePoint(item.lat, item.lng, item.label);
+      map.setView([item.lat, item.lng], 16);
+    }
+  });
+  return row;
+}
+
+function showSuggestions(items) {
+  suggestionsBox.innerHTML = '';
+  if (items.length === 0) { suggestionsBox.style.display = 'none'; return; }
+  items.forEach(item => suggestionsBox.appendChild(renderSuggestionRow(item)));
+  suggestionsBox.style.display = 'block';
+}
+
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.trim();
+  updateSearchClearBtn();
+  clearTimeout(searchDebounceTimer);
+  if (query.length < 2) {
+    suggestionsBox.style.display = 'none';
+    return;
+  }
+
+  // Lokala gatunamn visas direkt, ingen fördröjning
+  lastLocalMatches = uniqueParkingNames()
+    .filter(name => name.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 5)
+    .map(name => ({ type: 'gata', label: name }));
+  showSuggestions(lastLocalMatches);
+
+  // Adressförslag mot Nominatim (OpenStreetMap), fördröjt för att inte spamma API:et
+  searchDebounceTimer = setTimeout(() => {
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+      .then(r => r.json())
+      .then(results => {
+        const addressMatches = results.map(r => ({
+          type: 'address',
+          label: r.display_name,
+          lat: parseFloat(r.lat),
+          lng: parseFloat(r.lon)
+        }));
+        showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
+      })
+      .catch(() => { /* tyst fel - de lokala förslagen visas ändå */ });
+  }, 400);
+});
+
+document.addEventListener('click', (e) => {
+  if (e.target !== searchInput && !suggestionsBox.contains(e.target)) {
+    suggestionsBox.style.display = 'none';
+  }
+});
+
 setStatus("Hämtar avgiftsbelagd parkering…");
+
+// ---- Tema (mörkt/ljust) ----
+function setTheme(theme) {
+  document.body.classList.toggle('light-theme', theme === 'light');
+  document.getElementById('theme-dark').classList.toggle('active', theme === 'dark');
+  document.getElementById('theme-light').classList.toggle('active', theme === 'light');
+  try { localStorage.setItem('parkeraTheme', theme); } catch (e) { /* privat läge etc - ignorera */ }
+}
+document.getElementById('theme-dark').addEventListener('click', () => setTheme('dark'));
+document.getElementById('theme-light').addEventListener('click', () => setTheme('light'));
+let savedTheme = 'dark';
+try { savedTheme = localStorage.getItem('parkeraTheme') || 'dark'; } catch (e) { /* ignorera */ }
+setTheme(savedTheme);
 jsonp(
   `${BASE}PublicTollParkings/${APPID}?format=JSON`,
   'onToll',
