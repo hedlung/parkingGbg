@@ -321,9 +321,16 @@
   #detail-card.open { transform: translateY(0); }
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
   #detail-card .badge {
-    display: inline-block; font-size: 10.5px; font-weight: 700;
+    display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
     padding: 3px 8px; border-radius: 6px; margin-bottom: 6px;
     background: var(--panel-2); color: var(--text-dim);
+  }
+  .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
+  .d-swatch.circle { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .d-swatch.triangle {
+    display: inline-block; width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-bottom: 8px solid currentColor;
   }
   #detail-card h2 { font-size: 15px; margin: 0 0 2px 0; }
   #detail-card .addr { font-size: 12px; color: var(--text-dim); }
@@ -426,7 +433,7 @@
   <div id="detail-card">
     <div class="top-row">
       <div>
-        <div class="badge" id="d-badge">TAXA 3</div>
+        <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
         <h2 id="d-title">Vasagatan</h2>
         <div class="addr" id="d-addr">Vasastaden, Göteborg</div>
       </div>
@@ -438,8 +445,7 @@
       <div class="stat"><div class="v" id="d-slots">6</div><div class="k">platser</div></div>
     </div>
     <div class="actions">
-      <button class="primary" id="d-navigate">Navigera hit</button>
-      <a href="#" id="d-google">Google</a>
+      <a href="#" id="d-google" class="primary">Google</a>
       <a href="#" id="d-waze">Waze</a>
     </div>
   </div>
@@ -499,10 +505,10 @@
     });
   }
 
-  function makeFreeTriangleIcon() {
+  function makeFreeTriangleIcon(color) {
     // Triangel istället för rund prick, så gratisplatser syns tydligt skilda från taxor på kartan
     return L.divIcon({
-      html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:20px solid var(--free);filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));"></div>`,
+      html: `<div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:20px solid ${color};filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));"></div>`,
       className: '', iconSize: [24,20], iconAnchor: [12,18]
     });
   }
@@ -600,6 +606,11 @@
       const ma = FREE_GROUPS[a].maxMinutes ?? Infinity, mb = FREE_GROUPS[b].maxMinutes ?? Infinity;
       return ma - mb;
     });
+    // Gradvis grönt: ljusast för kortast maxtid, mörkast för längst
+    const GREEN_SHADES = ['#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d', '#14532d'];
+    FREE_ORDER.forEach((label, i) => {
+      FREE_GROUPS[label].color = GREEN_SHADES[Math.min(i, GREEN_SHADES.length - 1)];
+    });
   }
 
   // Tolkar "4 tim", "30 min", "7 dygn" till minuter
@@ -622,7 +633,8 @@
       taxa.spots.forEach(spot => {
         const onClick = () => openDetail({
           badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'), dist: '—', slots: spot.slots ?? '—'
+          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'), dist: '—', slots: spot.slots ?? '—',
+          swatchColor: taxa.color, swatchShape: 'circle'
         });
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
@@ -646,19 +658,20 @@
       free.spots.forEach(spot => {
         const onClick = () => openDetail({
           badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: 'Gratis', dist: '—', slots: spot.slots ?? '—'
+          cost: 'Gratis', dist: '—', slots: spot.slots ?? '—',
+          swatchColor: free.color, swatchShape: 'triangle'
         });
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
           shapes.forEach(shape => {
             const layer = shape.type === 'polygon'
-              ? L.polygon(shape.latlngs, { color: '#10b981', weight: 2, fillColor: '#10b981', fillOpacity: 0.25 })
-              : L.polyline(shape.latlngs, { color: '#10b981', weight: 5, opacity: 0.85 });
+              ? L.polygon(shape.latlngs, { color: free.color, weight: 2, fillColor: free.color, fillOpacity: 0.25 })
+              : L.polyline(shape.latlngs, { color: free.color, weight: 5, opacity: 0.85 });
             layer.on('click', onClick);
             layer.addTo(group);
           });
         } else {
-          const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon() }).addTo(group);
+          const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon(free.color) }).addTo(group);
           marker.on('click', onClick);
         }
       });
@@ -775,7 +788,7 @@
       const row = document.createElement('div');
       row.className = 'taxa-row';
       row.innerHTML = `
-        <div class="taxa-swatch free-tri"></div>
+        <div class="taxa-swatch free-tri" style="border-bottom-color:${free.color}"></div>
         <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
         <div class="info-btn" data-info-free="${free.id}">ⓘ</div>
         <div class="taxa-checkbox ${checkedState[free.id] ? 'on' : ''}" data-id="${free.id}">✓</div>
@@ -814,7 +827,7 @@
         e.stopPropagation();
         const taxa = TAXA_ORDER.map(c => TAXA_GROUPS[c]).find(t => t.id === btn.dataset.info);
         if (!taxa) return;
-        openDetail({ badge: taxa.name.toUpperCase(), title: 'Regler', addr: taxa.rules || 'Ingen regeltext tillgänglig.', cost: '', dist: '', slots: '' });
+        openDetail({ badge: taxa.name.toUpperCase(), title: 'Regler', addr: taxa.rules || 'Ingen regeltext tillgänglig.', cost: '', dist: '', slots: '', swatchColor: taxa.color, swatchShape: 'circle' });
       });
     });
     taxaListEl.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
@@ -822,7 +835,7 @@
         e.stopPropagation();
         const free = FREE_ORDER.map(l => FREE_GROUPS[l]).find(f => f.id === btn.dataset.infoFree);
         if (!free) return;
-        openDetail({ badge: free.label.toUpperCase(), title: 'Regler', addr: free.rules, cost: '', dist: '', slots: '' });
+        openDetail({ badge: free.label.toUpperCase(), title: 'Regler', addr: free.rules, cost: '', dist: '', slots: '', swatchColor: free.color, swatchShape: 'triangle' });
       });
     });
     syncLayersToState();
@@ -879,11 +892,11 @@
     const spots = [];
     FREE_ORDER.forEach(label => {
       const f = FREE_GROUPS[label];
-      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label }));
+      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color }));
     });
     TAXA_ORDER.forEach(code => {
       const t = TAXA_GROUPS[code];
-      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, perHour: t.perHour }));
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, perHour: t.perHour, color: t.color }));
     });
     return spots;
   }
@@ -920,7 +933,7 @@
       row.className = 'nearest-row';
       const cost = s.type === 'free' ? s.freeLabel : Math.round(s.perHour * hours) + ' kr';
       row.innerHTML = `
-        <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" ${s.type === 'taxa' ? `style="background:var(--taxa-${s.groupId})"` : ''}></div>
+        <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" style="${s.type === 'free' ? 'border-bottom-color' : 'background'}:${s.color}"></div>
         <div class="nearest-name">${s.name}</div>
         <div class="nearest-dist">${formatDistance(s.dist)}</div>
         <div class="nearest-cost">${cost}</div>
@@ -960,7 +973,10 @@
   // ---------- Detaljkort ----------
   const detailCard = document.getElementById('detail-card');
   function openDetail(data) {
-    document.getElementById('d-badge').textContent = data.badge;
+    document.getElementById('d-badge-text').textContent = data.badge;
+    const swatch = document.getElementById('d-swatch');
+    swatch.className = 'd-swatch' + (data.swatchShape ? ' ' + data.swatchShape : '');
+    swatch.style.color = data.swatchColor || '';
     document.getElementById('d-title').textContent = data.title;
     document.getElementById('d-addr').textContent = data.addr;
     document.getElementById('d-cost').textContent = data.cost;
