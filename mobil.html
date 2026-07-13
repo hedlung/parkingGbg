@@ -507,6 +507,69 @@
     });
   }
 
+  // ---- WKT-parser, samma logik som webbversionen ----
+  // WKT-koordinater är "lng lat", Leaflet vill ha [lat, lng] - vi vänder på ordningen.
+  function parseCoordPair(str) {
+    const parts = str.trim().split(/\s+/).map(Number);
+    return [parts[1], parts[0]]; // [lat, lng]
+  }
+  function parseCoordList(str) {
+    return str.split(',').map(parseCoordPair);
+  }
+  // Delar upp en sträng i toppnivågrupper separerade av kommatecken, med hänsyn till parenteser
+  function splitTopLevel(str) {
+    const result = [];
+    let depth = 0, start = 0;
+    for (let i = 0; i < str.length; i++) {
+      if (str[i] === '(') depth++;
+      else if (str[i] === ')') depth--;
+      else if (str[i] === ',' && depth === 0) {
+        result.push(str.slice(start, i));
+        start = i + 1;
+      }
+    }
+    result.push(str.slice(start));
+    return result;
+  }
+  function stripOuterParens(str) {
+    str = str.trim();
+    if (str.startsWith('(') && str.endsWith(')')) return str.slice(1, -1).trim();
+    return str;
+  }
+  // Returnerar en lista av { type: 'line'|'polygon', latlngs: [...] }
+  function parseWKT(wkt) {
+    if (!wkt) return [];
+    wkt = wkt.trim();
+    const shapes = [];
+    function parseOne(text) {
+      const typeMatch = text.match(/^\s*([A-Z]+)\s*\(/i);
+      if (!typeMatch) return;
+      const type = typeMatch[1].toUpperCase();
+      const body = text.slice(typeMatch[0].length - 1);
+      const inner = stripOuterParens(body);
+      if (type === 'LINESTRING') {
+        shapes.push({ type: 'line', latlngs: parseCoordList(inner) });
+      } else if (type === 'MULTILINESTRING') {
+        splitTopLevel(inner).forEach(part => {
+          shapes.push({ type: 'line', latlngs: parseCoordList(stripOuterParens(part)) });
+        });
+      } else if (type === 'POLYGON') {
+        const rings = splitTopLevel(inner).map(r => parseCoordList(stripOuterParens(r)));
+        shapes.push({ type: 'polygon', latlngs: rings });
+      } else if (type === 'MULTIPOLYGON') {
+        splitTopLevel(inner).forEach(polyPart => {
+          const polyInner = stripOuterParens(polyPart);
+          const rings = splitTopLevel(polyInner).map(r => parseCoordList(stripOuterParens(r)));
+          shapes.push({ type: 'polygon', latlngs: rings });
+        });
+      } else if (type === 'GEOMETRYCOLLECTION') {
+        splitTopLevel(inner).forEach(part => parseOne(part.trim()));
+      }
+    }
+    parseOne(wkt);
+    return shapes;
+  }
+
   // Bygger taxa-/gratisgrupper (färg, spots) från den råa API-datan
   function buildGroupsFromData() {
     allTollFeatures.forEach(p => {
@@ -515,7 +578,7 @@
       if (!TAXA_GROUPS[code]) {
         TAXA_GROUPS[code] = { id: 'taxa-' + code, code, name: 'Taxa ' + code, color: null, perHour: parseSimpleRate(p.ParkingCost), rules: p.ParkingCost || '', spots: [] };
       }
-      TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces });
+      TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT });
     });
     TAXA_ORDER = Object.keys(TAXA_GROUPS).sort((a, b) => {
       const ka = taxaSortKey(a), kb = taxaSortKey(b);
@@ -531,7 +594,7 @@
       if (!FREE_GROUPS[label]) {
         FREE_GROUPS[label] = { id, label, maxMinutes: parseMaxParkingMinutes(maxLabel), rules: 'Gratis parkering, max ' + maxLabel + ' i följd. Kontrollera skyltning på plats.', spots: [] };
       }
-      FREE_GROUPS[label].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces });
+      FREE_GROUPS[label].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT });
     });
     FREE_ORDER = Object.keys(FREE_GROUPS).sort((a, b) => {
       const ma = FREE_GROUPS[a].maxMinutes ?? Infinity, mb = FREE_GROUPS[b].maxMinutes ?? Infinity;
@@ -557,11 +620,23 @@
       const taxa = TAXA_GROUPS[code];
       const group = L.layerGroup().addTo(map);
       taxa.spots.forEach(spot => {
-        const marker = L.marker([spot.lat, spot.lng], { icon: makeIcon(taxa.color, taxa.code) }).addTo(group);
-        marker.on('click', () => openDetail({
+        const onClick = () => openDetail({
           badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
           cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'), dist: '—', slots: spot.slots ?? '—'
-        }));
+        });
+        const shapes = parseWKT(spot.wkt);
+        if (shapes.length > 0) {
+          shapes.forEach(shape => {
+            const layer = shape.type === 'polygon'
+              ? L.polygon(shape.latlngs, { color: taxa.color, weight: 2, fillColor: taxa.color, fillOpacity: 0.25 })
+              : L.polyline(shape.latlngs, { color: taxa.color, weight: 5, opacity: 0.85 });
+            layer.on('click', onClick);
+            layer.addTo(group);
+          });
+        } else {
+          const marker = L.marker([spot.lat, spot.lng], { icon: makeIcon(taxa.color, taxa.code) }).addTo(group);
+          marker.on('click', onClick);
+        }
       });
       markerLayers[taxa.id] = group;
     });
@@ -569,11 +644,23 @@
       const free = FREE_GROUPS[label];
       const group = L.layerGroup().addTo(map);
       free.spots.forEach(spot => {
-        const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon() }).addTo(group);
-        marker.on('click', () => openDetail({
+        const onClick = () => openDetail({
           badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
           cost: 'Gratis', dist: '—', slots: spot.slots ?? '—'
-        }));
+        });
+        const shapes = parseWKT(spot.wkt);
+        if (shapes.length > 0) {
+          shapes.forEach(shape => {
+            const layer = shape.type === 'polygon'
+              ? L.polygon(shape.latlngs, { color: '#10b981', weight: 2, fillColor: '#10b981', fillOpacity: 0.25 })
+              : L.polyline(shape.latlngs, { color: '#10b981', weight: 5, opacity: 0.85 });
+            layer.on('click', onClick);
+            layer.addTo(group);
+          });
+        } else {
+          const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon() }).addTo(group);
+          marker.on('click', onClick);
+        }
       });
       markerLayers[free.id] = group;
     });
