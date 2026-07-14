@@ -319,7 +319,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--shadow);
-    padding: 16px;
+    padding: 13px 16px;
     transform: translateY(140%);
     transition: transform 0.25s cubic-bezier(.2,.8,.3,1);
   }
@@ -327,7 +327,7 @@
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
   #detail-card .badge {
     display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
-    padding: 3px 8px; border-radius: 6px; margin-bottom: 6px;
+    padding: 3px 8px; border-radius: 6px; margin-bottom: 4px;
     background: var(--panel-2); color: var(--text-dim);
   }
   .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
@@ -338,12 +338,12 @@
     border-bottom: 8px solid currentColor;
   }
   #detail-card h2 { font-size: 15px; margin: 0; }
-  #detail-card .title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .addr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 1px; }
+  #detail-card .addr { font-size: 12px; color: var(--text-dim); }
   .slots-badge {
     font-size: 11px; font-weight: 700; color: var(--text-dim);
     background: var(--panel-2); padding: 2px 8px; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
   }
-  #detail-card .addr { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
   #detail-card .close-x {
     width: 34px; height: 34px; border-radius: 50%;
     background: var(--accent); display: flex; align-items: center; justify-content: center;
@@ -352,28 +352,27 @@
   #detail-card.no-stats .stats { display: none; }
   #detail-card.no-stats .slots-badge { display: none; }
   #detail-card .stats {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;
+    display: flex; align-items: center; gap: 14px;
+    margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;
   }
-  .cost-block .v { font-size: 20px; font-weight: 700; }
-  .cost-block .k { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
-  .cost-block .dist-line { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
-  .cost-block .dist-line span { color: var(--text); font-weight: 600; }
-  .nav-wrap { position: relative; flex: 0 0 auto; }
+  .cost-block, .dist-block { flex: 0 0 auto; }
+  .cost-block .v, .dist-block .v { font-size: 18px; font-weight: 700; }
+  .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+  .nav-wrap { position: relative; flex: 1; }
   #d-nav-btn {
-    width: 46px; height: 46px; border-radius: 50%;
+    width: 100%; height: 40px; border-radius: 10px;
     background: var(--accent); border: none; color: white;
-    font-size: 20px; display: flex; align-items: center; justify-content: center;
+    font-size: 13.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;
   }
   #d-nav-menu {
-    display: none; position: absolute; bottom: 54px; right: 0;
+    display: none; position: absolute; bottom: 48px; right: 0; left: 0;
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow); overflow: hidden; min-width: 130px; z-index: 10;
+    box-shadow: var(--shadow); overflow: hidden; z-index: 10;
   }
   #d-nav-menu.show { display: block; }
   #d-nav-menu a {
     display: block; padding: 10px 14px; font-size: 13px; font-weight: 600;
-    color: var(--text); text-decoration: none; white-space: nowrap;
+    color: var(--text); text-decoration: none; white-space: nowrap; text-align: center;
   }
   #d-nav-menu a:not(:last-child) { border-bottom: 1px solid var(--border); }
   #d-nav-menu a:active { background: var(--panel); }
@@ -457,11 +456,11 @@
     <div class="top-row">
       <div>
         <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
-        <div class="title-row">
-          <h2 id="d-title">Vasagatan</h2>
+        <h2 id="d-title">Vasagatan</h2>
+        <div class="addr-row">
+          <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
           <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
         </div>
-        <div class="addr" id="d-addr">Vasastaden, Göteborg</div>
       </div>
       <div class="close-x" id="d-close">✕</div>
     </div>
@@ -469,10 +468,22 @@
       <div class="cost-block">
         <div class="v" id="d-cost">14 kr</div>
         <div class="k" id="d-cost-label">för 2 tim</div>
-        <div class="dist-line" id="d-dist-line">Avstånd: <span id="d-dist">180 m</span></div>
+      </div>
+      <div class="dist-block">
+        <div class="v" id="d-dist">180 m</div>
+        <div class="k">avstånd</div>
       </div>
       <div class="nav-wrap">
-        <button id="d-nav-btn" aria-label="Navigera hit">🧭</button>
+        <button id="d-nav-btn" aria-label="Navigera hit">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
+            <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
+              <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+          </svg>
+          Navigera
+        </button>
         <div id="d-nav-menu">
           <a href="#" id="d-google" target="_blank" rel="noopener">Google Maps</a>
           <a href="#" id="d-waze" target="_blank" rel="noopener">Waze</a>
