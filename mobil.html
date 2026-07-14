@@ -440,13 +440,13 @@
       <div class="close-x" id="d-close">✕</div>
     </div>
     <div class="stats">
-      <div class="stat"><div class="v" id="d-cost">14 kr</div><div class="k">för 2 tim</div></div>
+      <div class="stat"><div class="v" id="d-cost">14 kr</div><div class="k" id="d-cost-label">för 2 tim</div></div>
       <div class="stat"><div class="v" id="d-dist">180 m</div><div class="k">avstånd</div></div>
       <div class="stat"><div class="v" id="d-slots">6</div><div class="k">platser</div></div>
     </div>
     <div class="actions">
-      <a href="#" id="d-google" class="primary">Google</a>
-      <a href="#" id="d-waze">Waze</a>
+      <a href="#" id="d-google" class="primary" target="_blank" rel="noopener">Google</a>
+      <a href="#" id="d-waze" target="_blank" rel="noopener">Waze</a>
     </div>
   </div>
 </div>
@@ -633,8 +633,12 @@
       taxa.spots.forEach(spot => {
         const onClick = () => openDetail({
           badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'), dist: '—', slots: spot.slots ?? '—',
-          swatchColor: taxa.color, swatchShape: 'circle'
+          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'),
+          dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
+          slots: spot.slots ?? '—',
+          costLabel: taxa.perHour ? 'för ' + formatHours(getDurationHours()) : '',
+          swatchColor: taxa.color, swatchShape: 'circle',
+          lat: spot.lat, lng: spot.lng
         });
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
@@ -658,8 +662,11 @@
       free.spots.forEach(spot => {
         const onClick = () => openDetail({
           badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: 'Gratis', dist: '—', slots: spot.slots ?? '—',
-          swatchColor: free.color, swatchShape: 'triangle'
+          cost: 'Gratis',
+          dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
+          slots: spot.slots ?? '—',
+          swatchColor: free.color, swatchShape: 'triangle',
+          lat: spot.lat, lng: spot.lng
         });
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
@@ -980,8 +987,18 @@
     document.getElementById('d-title').textContent = data.title;
     document.getElementById('d-addr').textContent = data.addr;
     document.getElementById('d-cost').textContent = data.cost;
+    document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
     document.getElementById('d-slots').textContent = data.slots;
+    const googleLink = document.getElementById('d-google');
+    const wazeLink = document.getElementById('d-waze');
+    if (data.lat != null && data.lng != null) {
+      googleLink.href = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`;
+      wazeLink.href = `https://waze.com/ul?ll=${data.lat},${data.lng}&navigate=yes`;
+    } else {
+      googleLink.href = '#';
+      wazeLink.href = '#';
+    }
     detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
     detailCard.classList.add('open');
   }
