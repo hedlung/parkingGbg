@@ -140,10 +140,9 @@
   #theme-row #loaded-count { flex: 1; min-width: 0; }
 
   #install-btn {
-    width: 100%; margin-top: 10px; padding: 11px; border-radius: 10px;
+    width: 40px; height: 40px; flex: 0 0 auto; padding: 0; border-radius: 12px;
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    font-size: 13.5px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; gap: 7px;
+    display: flex; align-items: center; justify-content: center;
   }
   #install-btn.hidden { display: none; }
 
@@ -178,6 +177,26 @@
     padding: 9px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 700;
     background: var(--accent); border: 1px solid var(--accent); color: white;
   }
+
+  #android-install-overlay {
+    display: none; position: absolute; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.5);
+    align-items: center; justify-content: center;
+  }
+  #android-install-overlay.show { display: flex; }
+  #android-install-box {
+    width: calc(100% - 56px); max-width: 320px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow); padding: 18px;
+  }
+  #android-install-box h3 { margin: 0 0 10px 0; font-size: 15px; }
+  #android-install-box p { margin: 0 0 16px 0; font-size: 13.5px; color: var(--text); line-height: 1.5; }
+  .android-install-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .android-install-actions button {
+    padding: 9px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 700;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  #android-install-add { background: var(--accent); border-color: var(--accent); color: white; }
 
   /* ---- Panel: slidear in från sidan, docked under topbaren ---- */
   /* Fliken är ett fysiskt barn till panelen och ärver därför exakt samma transform/rörelse - garanterat klistrad, ingen separat beräkning som kan hamna fel */
@@ -530,17 +549,16 @@
 
       <div id="theme-row">
         <div id="loaded-count">2 598 parkeringar laddade</div>
+        <button id="install-btn" aria-label="Installera appen">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v13"/>
+            <polyline points="7 11 12 16 17 11"/>
+            <path d="M4 19h16"/>
+          </svg>
+        </button>
         <div id="theme-toggle">🌙</div>
         <div id="map-toggle">🗺️</div>
       </div>
-      <button id="install-btn">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3v13"/>
-          <polyline points="7 11 12 16 17 11"/>
-          <path d="M4 19h16"/>
-        </svg>
-        Installera appen
-      </button>
     </div>
   </div>
 
@@ -582,6 +600,17 @@
       </ol>
       <div class="install-instructions-actions">
         <button id="install-instructions-ok">Uppfattat</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="android-install-overlay">
+    <div id="android-install-box">
+      <h3>Installera som app</h3>
+      <p>Vill du lägga till Parkera i Göteborg på din hemskärm? Du får då en egen app-ikon och appen öppnas i helskärm utan webbläsarens gränssnitt.</p>
+      <div class="android-install-actions">
+        <button id="android-install-cancel">Avbryt</button>
+        <button id="android-install-add">Lägg till</button>
       </div>
     </div>
   </div>
@@ -1491,6 +1520,7 @@
   // ---------- Installera som app ----------
   const installBtn = document.getElementById('install-btn');
   const installOverlay = document.getElementById('install-instructions-overlay');
+  const androidInstallOverlay = document.getElementById('android-install-overlay');
   let deferredInstallPrompt = null;
 
   // Redan installerad/körs som app? Då behövs ingen knapp.
@@ -1503,11 +1533,10 @@
     deferredInstallPrompt = e;
   });
 
-  installBtn.addEventListener('click', async () => {
+  installBtn.addEventListener('click', () => {
     if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-      deferredInstallPrompt = null;
+      // Android: visa vår egen Avbryt/Lägg till-fråga först, sedan webbläsarens riktiga installation
+      androidInstallOverlay.classList.add('show');
     } else {
       // iPhone/Safari stödjer ingen automatisk fråga - visa hur man gör det manuellt istället
       installOverlay.classList.add('show');
@@ -1515,6 +1544,17 @@
   });
   document.getElementById('install-instructions-ok').addEventListener('click', () => {
     installOverlay.classList.remove('show');
+  });
+  document.getElementById('android-install-cancel').addEventListener('click', () => {
+    androidInstallOverlay.classList.remove('show');
+  });
+  document.getElementById('android-install-add').addEventListener('click', async () => {
+    androidInstallOverlay.classList.remove('show');
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+    }
   });
   document.querySelectorAll('.nav-menu').forEach(menu => {
     menu.addEventListener('click', (e) => { if (e.target.tagName === 'A') menu.classList.remove('show'); });
