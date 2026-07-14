@@ -458,7 +458,7 @@
   const BASE = 'https://data.goteborg.se/ParkingService/v2.3/';
 
   // Spektrum-palett utan grönt (grönt är reserverat för gratiskategorierna)
-  const TAXA_PALETTE = ['#ef4444','#f97316','#eab308','#3b82f6','#6366f1','#8b5cf6','#ec4899','#06b6d4','#f43f5e','#0ea5e9','#a855f7','#f59e0b','#14b8a6'];
+  const TAXA_PALETTE = ['#ef4444','#f97316','#eab308','#3b82f6','#6366f1','#8b5cf6','#ec4899','#dc2626','#ea580c','#facc15','#2563eb','#7c3aed','#f43f5e','#0ea5e9'];
 
   function extractTaxa(charge) {
     const m = charge && charge.match(/Taxa\s+(\w+)/i);
@@ -531,6 +531,20 @@
     attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO', subdomains: 'abcd', maxZoom: 20
   });
   osmLayer.addTo(map);
+
+  // Försöker ladda om en kartbricka (tile) som misslyckats, upp till 3 gånger med kort fördröjning
+  function addTileRetry(layer) {
+    layer.on('tileerror', (err) => {
+      const tile = err.tile;
+      const retries = parseInt(tile.dataset.retryCount || '0');
+      if (retries < 3) {
+        tile.dataset.retryCount = String(retries + 1);
+        setTimeout(() => { tile.src = tile.src; }, 600 * (retries + 1));
+      }
+    });
+  }
+  addTileRetry(osmLayer);
+  addTileRetry(voyagerLayer);
 
   function makeIcon(color, symbol) {
     return L.divIcon({
@@ -682,6 +696,7 @@
             swatchColor: taxa.color, swatchShape: 'circle',
             lat: spot.lat, lng: spot.lng
           });
+          highlightSpot(spot, shapes);
         };
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
@@ -703,14 +718,17 @@
       const free = FREE_GROUPS[label];
       const group = L.layerGroup().addTo(map);
       free.spots.forEach(spot => {
-        const onClick = () => openDetail({
-          badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: 'Gratis',
-          dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
-          slots: spot.slots ?? '—',
-          swatchColor: free.color, swatchShape: 'triangle',
-          lat: spot.lat, lng: spot.lng
-        });
+        const onClick = () => {
+          openDetail({
+            badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
+            cost: 'Gratis',
+            dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
+            slots: spot.slots ?? '—',
+            swatchColor: free.color, swatchShape: 'triangle',
+            lat: spot.lat, lng: spot.lng
+          });
+          highlightSpot(spot, shapes);
+        };
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
           shapes.forEach(shape => {
@@ -928,6 +946,38 @@
   // ---------- Närmast dig ----------
   let referencePoint = null; // { lat, lng } - sätts av "Hitta mig" eller sökt adress/gata
 
+  // ---------- Highlight (röd kontur runt vald parkering + fågelvägslinje) ----------
+  let currentHighlightLayers = [];
+  function clearHighlight() {
+    currentHighlightLayers.forEach(l => map.removeLayer(l));
+    currentHighlightLayers = [];
+  }
+  function highlightSpot(spot, shapes) {
+    clearHighlight();
+    if (shapes && shapes.length > 0) {
+      shapes.forEach(shape => {
+        const hl = shape.type === 'polygon'
+          ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 3, fillOpacity: 0, opacity: 0.9, interactive: false })
+          : L.polyline(shape.latlngs, { color: '#ef4444', weight: 8, opacity: 0.85, interactive: false });
+        hl.addTo(map);
+        currentHighlightLayers.push(hl);
+      });
+    } else {
+      const hl = L.circleMarker([spot.lat, spot.lng], { radius: 13, color: '#ef4444', weight: 3, fillOpacity: 0, interactive: false });
+      hl.addTo(map);
+      currentHighlightLayers.push(hl);
+    }
+    if (referencePoint) {
+      const line = L.polyline(
+        [[referencePoint.lat, referencePoint.lng], [spot.lat, spot.lng]],
+        { color: '#ef4444', weight: 1.5, opacity: 0.6, dashArray: '4,4', interactive: false }
+      );
+      line.addTo(map);
+      currentHighlightLayers.push(line);
+    }
+  }
+
+
   function haversineMeters(lat1, lng1, lat2, lng2) {
     const R = 6371000;
     const toRad = d => d * Math.PI / 180;
@@ -944,11 +994,11 @@
     const spots = [];
     FREE_ORDER.forEach(label => {
       const f = FREE_GROUPS[label];
-      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color }));
+      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color, slots: s.slots, badge: f.label.toUpperCase(), wkt: s.wkt }));
     });
     TAXA_ORDER.forEach(code => {
       const t = TAXA_GROUPS[code];
-      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color }));
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color, slots: s.slots, badge: t.name.toUpperCase(), wkt: s.wkt }));
     });
     return spots;
   }
@@ -997,6 +1047,18 @@
         const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng], [s.lat, s.lng]);
         map.fitBounds(bounds, { padding: [60, 60], maxZoom: 18 });
         closePanel();
+        const cost = s.type === 'free' ? 'Gratis' : (() => {
+          const c = computeCost(s.costParsed, calcTime, hours);
+          return c !== null ? c + ' kr' : '—';
+        })();
+        openDetail({
+          badge: s.badge, title: s.name, addr: 'Göteborg',
+          cost, dist: formatDistance(s.dist), slots: s.slots ?? '—',
+          costLabel: (s.type === 'taxa' && cost !== '—') ? 'för ' + formatHours(hours) : '',
+          swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
+          lat: s.lat, lng: s.lng
+        });
+        highlightSpot(s, parseWKT(s.wkt));
       });
       listEl.appendChild(row);
     });
@@ -1054,7 +1116,7 @@
     detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
     detailCard.classList.add('open');
   }
-  document.getElementById('d-close').addEventListener('click', () => detailCard.classList.remove('open'));
+  document.getElementById('d-close').addEventListener('click', () => { detailCard.classList.remove('open'); clearHighlight(); });
 
   // ---------- Tema (knapp i topbaren) ----------
   const themeToggle = document.getElementById('theme-toggle');
