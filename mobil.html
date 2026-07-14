@@ -356,6 +356,7 @@
   .slots-badge {
     font-size: 11px; font-weight: 700; color: var(--text-dim);
     background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+    margin-left: 44px;
   }
   #detail-card.no-stats .slots-badge { display: none; }
   .nav-wrap { position: relative; flex: 0 0 auto; margin-left: 14px; }
@@ -460,6 +461,7 @@
         <h2 id="d-title">Vasagatan</h2>
         <div class="addr-row">
           <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
+          <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
         </div>
       </div>
       <div class="close-x" id="d-close">✕</div>
@@ -473,7 +475,6 @@
         <div class="v" id="d-dist">180 m</div>
         <div class="k">avstånd</div>
       </div>
-      <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
       <div class="nav-wrap">
         <button id="d-nav-btn" aria-label="Navigera hit">
           <svg viewBox="0 0 24 24" width="20" height="20">
