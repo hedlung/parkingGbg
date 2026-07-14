@@ -57,7 +57,7 @@
   /* ---- Topbar: sök (går ända ut till vänsterkanten) ---- */
   #topbar {
     position: absolute; top: 0; left: 0; right: 0; z-index: 600;
-    padding: 12px; display: flex; gap: 8px;
+    padding: 6px 12px 12px 12px; display: flex; gap: 8px;
   }
   #search-wrap {
     position: relative;
@@ -88,7 +88,7 @@
   body.light-theme #search-clear { background: #ffffff; color: #000000; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 
   #search-suggestions {
-    position: absolute; top: 68px; left: 68px; right: 62px; z-index: 610;
+    position: absolute; top: 62px; left: 68px; right: 62px; z-index: 610;
     background: #fff8dc; color: #14171a;
     border-radius: 13px; box-shadow: var(--shadow);
     max-height: 55vh; overflow-y: auto; display: none;
@@ -155,10 +155,10 @@
   #panel-wrap.open #edge-tab .icon-close { opacity: 1; }
 
   #panel-wrap {
-    position: absolute; top: 68px; left: 12px; z-index: 750;
+    position: absolute; top: 62px; left: 12px; z-index: 750;
     width: min(86%, 360px);
-    max-height: calc(100vh - 84px);
-    max-height: calc(100dvh - 84px);
+    max-height: calc(100vh - 68px);
+    max-height: calc(100dvh - 68px);
     /* Stängt läge: panelen skjuts så långt åt vänster att bara fliken (som sitter fast på dess högerkant) syns kvar vid skärmens vänsterkant */
     transform: translateX(calc(-100% - 12px));
     transition: transform 0.5s cubic-bezier(0.45, 0, 0.2, 1);
@@ -169,8 +169,8 @@
     border: 1px solid var(--border);
     border-radius: 14px;
     box-shadow: var(--shadow);
-    max-height: calc(100vh - 84px);
-    max-height: calc(100dvh - 84px);
+    max-height: calc(100vh - 68px);
+    max-height: calc(100dvh - 68px);
     overflow-y: auto;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -314,7 +314,7 @@
 
   /* ---- Nedre detaljkort (vid vald pin) ---- */
   #detail-card {
-    position: absolute; left: 12px; right: 12px; bottom: 16px; z-index: 700;
+    position: absolute; left: 12px; right: 12px; bottom: 6px; z-index: 700;
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -327,12 +327,11 @@
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
   .info-grid {
     display: grid; grid-template-columns: 1fr auto;
-    align-items: center; column-gap: 10px; row-gap: 3px;
+    align-items: baseline; column-gap: 10px; row-gap: 3px;
   }
   #detail-card .badge {
-    display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
-    padding: 3px 8px; border-radius: 6px;
-    background: var(--panel-2); color: var(--text-dim);
+    display: inline-flex; align-items: center; font-size: 12px; font-weight: 600;
+    color: var(--text-dim);
     justify-self: start;
   }
   .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
@@ -358,19 +357,32 @@
   .cost-block .v, .dist-block .v { font-size: 18px; font-weight: 700; }
   .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
   .slots-badge {
-    font-size: 11px; font-weight: 700; color: var(--text-dim);
-    background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+    font-size: 12px; font-weight: 600; color: var(--text-dim);
+    white-space: nowrap;
     justify-self: start;
   }
   #detail-card.no-stats .slots-badge { display: none; }
   .nav-wrap { display: flex; gap: 8px; flex: 0 0 auto; margin-left: 14px; }
+  .nav-btn-wrap { position: relative; }
   .nav-btn {
-    height: 38px; padding: 0 14px; border-radius: 10px;
+    width: 78px; height: 38px; padding: 0; border-radius: 10px;
     background: var(--accent); border: none; color: white;
-    font-size: 13.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;
-    white-space: nowrap; text-decoration: none;
+    font-size: 13.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 5px;
+    white-space: nowrap;
   }
   .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
+  .nav-menu {
+    display: none; position: absolute; bottom: 46px; right: 0;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow); overflow: hidden; min-width: 140px; z-index: 20;
+  }
+  .nav-menu.show { display: block; }
+  .nav-menu a {
+    display: block; padding: 10px 14px; font-size: 13px; font-weight: 600;
+    color: var(--text); text-decoration: none; white-space: nowrap; text-align: center;
+  }
+  .nav-menu a:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .nav-menu a:active { background: var(--panel); }
 
   /* ---- "Hitta mig" ---- */
   #locate-btn {
@@ -404,7 +416,15 @@
       <input id="search-input" placeholder="Sök adress, gata eller taxa" autocomplete="off">
       <div id="search-clear">✕</div>
     </div>
-    <div id="locate-btn">⌖</div>
+    <div id="locate-btn">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4.2"/>
+        <line x1="12" y1="1.5" x2="12" y2="5.5"/>
+        <line x1="12" y1="18.5" x2="12" y2="22.5"/>
+        <line x1="1.5" y1="12" x2="5.5" y2="12"/>
+        <line x1="18.5" y1="12" x2="22.5" y2="12"/>
+      </svg>
+    </div>
   </div>
   <div id="search-suggestions"></div>
 
@@ -467,26 +487,40 @@
         <div class="k">avstånd</div>
       </div>
       <div class="nav-wrap">
-        <a id="d-nav-hit" class="nav-btn" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
-            <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
-              <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-            </g>
-          </svg>
-          Hit
-        </a>
-        <a id="d-nav-from" class="nav-btn" target="_blank" rel="noopener">
-          <svg viewBox="0 0 24 24" width="18" height="18">
-            <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
-            <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
-              <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-            </g>
-          </svg>
-          Från
-        </a>
+        <div class="nav-btn-wrap">
+          <button id="d-nav-hit-btn" class="nav-btn" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
+              <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
+                <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+            </svg>
+            Hit
+          </button>
+          <div class="nav-menu" id="d-nav-hit-menu">
+            <a id="d-hit-google" target="_blank" rel="noopener">Google Maps</a>
+            <a id="d-hit-apple" target="_blank" rel="noopener">Apple Kartor</a>
+            <a id="d-hit-waze" target="_blank" rel="noopener">Waze</a>
+          </div>
+        </div>
+        <div class="nav-btn-wrap">
+          <button id="d-nav-from-btn" class="nav-btn" type="button">
+            <svg viewBox="0 0 24 24" width="18" height="18">
+              <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
+              <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
+                <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+            </svg>
+            Från
+          </button>
+          <div class="nav-menu" id="d-nav-from-menu">
+            <a id="d-from-google" target="_blank" rel="noopener">Google Maps</a>
+            <a id="d-from-apple" target="_blank" rel="noopener">Apple Kartor</a>
+            <a id="d-from-waze" target="_blank" rel="noopener">Waze</a>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -726,7 +760,7 @@
       const taxa = TAXA_GROUPS[code];
       const group = L.layerGroup().addTo(map);
       taxa.spots.forEach(spot => {
-        const onClick = () => {
+        const showDetail = () => {
           const cost = computeCost(taxa.costParsed, calcTime, getDurationHours());
           openDetail({
             badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
@@ -737,6 +771,10 @@
             swatchColor: taxa.color, swatchShape: 'circle',
             lat: spot.lat, lng: spot.lng
           });
+        };
+        const onClick = () => {
+          showDetail();
+          refreshOpenDetail = showDetail;
           highlightSpot(spot, shapes);
           selectedSpotKey = spotKey(taxa.id, spot.lat, spot.lng);
           renderNearestList();
@@ -764,7 +802,7 @@
       const free = FREE_GROUPS[label];
       const group = L.layerGroup().addTo(map);
       free.spots.forEach(spot => {
-        const onClick = () => {
+        const showDetail = () => {
           openDetail({
             badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
             cost: 'Gratis',
@@ -774,6 +812,10 @@
             swatchColor: free.color, swatchShape: 'triangle',
             lat: spot.lat, lng: spot.lng
           });
+        };
+        const onClick = () => {
+          showDetail();
+          refreshOpenDetail = showDetail;
           highlightSpot(spot, shapes);
           selectedSpotKey = spotKey(free.id, spot.lat, spot.lng);
           renderNearestList();
@@ -854,6 +896,7 @@
     panelIsOpen = true;
     panelWrap.classList.add('open');
     scrim.classList.add('show');
+    document.getElementById('panel').scrollTop = 0;
   }
   function closePanel() {
     if (!panelIsOpen) return;
@@ -992,6 +1035,7 @@
   document.getElementById('duration-slider').addEventListener('input', () => {
     document.getElementById('duration-val').textContent = formatHours(getDurationHours());
     renderTaxaList();
+    if (refreshOpenDetail) refreshOpenDetail();
   });
   document.getElementById('duration-val').textContent = formatHours(getDurationHours());
 
@@ -1001,6 +1045,7 @@
   // ---------- Highlight (röd kontur runt vald parkering + fågelvägslinje) ----------
   let currentHighlightLayers = [];
   let selectedSpotKey = null; // identifierar vald rad, så Närmast dig-listan kan visa vilken som är aktiv
+  let refreshOpenDetail = null; // funktion som räknar om det ÖPPNA detaljkortet, t.ex. vid ändrad parkeringstid
   function spotKey(groupId, lat, lng) { return groupId + '|' + lat + ',' + lng; }
   function clearHighlight() {
     currentHighlightLayers.forEach(l => map.removeLayer(l));
@@ -1106,17 +1151,22 @@
         const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng], [s.lat, s.lng]);
         map.fitBounds(bounds, { paddingTopLeft: [40, 90], paddingBottomRight: [40, 230], maxZoom: 18 });
         closePanel();
-        const cost = s.type === 'free' ? 'Gratis' : (() => {
-          const c = computeCost(s.costParsed, calcTime, hours);
-          return c !== null ? c + ' kr' : '—';
-        })();
-        openDetail({
-          badge: s.badge, title: s.name, addr: 'Göteborg',
-          cost, dist: formatDistance(s.dist), slots: s.slots ?? '—',
-          costLabel: s.type === 'taxa' ? 'för ' + formatHours(hours) : 'vald tid: ' + formatHours(hours),
-          swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
-          lat: s.lat, lng: s.lng
-        });
+        const showDetail = () => {
+          const h = getDurationHours();
+          const cost = s.type === 'free' ? 'Gratis' : (() => {
+            const c = computeCost(s.costParsed, calcTime, h);
+            return c !== null ? c + ' kr' : '—';
+          })();
+          openDetail({
+            badge: s.badge, title: s.name, addr: 'Göteborg',
+            cost, dist: formatDistance(s.dist), slots: s.slots ?? '—',
+            costLabel: s.type === 'taxa' ? 'för ' + formatHours(h) : 'vald tid: ' + formatHours(h),
+            swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
+            lat: s.lat, lng: s.lng
+          });
+        };
+        showDetail();
+        refreshOpenDetail = showDetail;
         highlightSpot(s, parseWKT(s.wkt));
         selectedSpotKey = spotKey(s.groupId, s.lat, s.lng);
         renderNearestList();
@@ -1147,6 +1197,7 @@
     calcTime = new Date();
     document.getElementById('calc-time').textContent = formatClock(calcTime);
     renderTaxaList(); // räknar om priser och maxtidsspärrar med den nya tiden
+    if (refreshOpenDetail) refreshOpenDetail();
   }
   document.getElementById('calc-now-btn').addEventListener('click', refreshCalcTime);
   // Klockan går vidare även om ingen rör appen - uppdatera automatiskt var 5:e minut
@@ -1165,33 +1216,62 @@
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
     document.getElementById('d-slots').textContent = data.slots;
-    const hitBtn = document.getElementById('d-nav-hit');
-    const fromBtn = document.getElementById('d-nav-from');
+
+    const hitMenuBtn = document.getElementById('d-nav-hit-btn');
+    const fromMenuBtn = document.getElementById('d-nav-from-btn');
+
     if (data.lat != null && data.lng != null) {
-      // Hit: ingen origin angiven - Google Maps använder automatiskt enhetens nuvarande position
-      hitBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`;
-      hitBtn.classList.remove('disabled');
+      hitMenuBtn.classList.remove('disabled');
+      // Hit: ingen origin angiven - Google Maps/Apple Kartor använder automatiskt enhetens nuvarande position
+      document.getElementById('d-hit-google').href = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`;
+      document.getElementById('d-hit-apple').href = `https://maps.apple.com/?daddr=${data.lat},${data.lng}`;
+      document.getElementById('d-hit-waze').href = `https://waze.com/ul?ll=${data.lat},${data.lng}&navigate=yes`;
+
       // Från: från den valda parkeringen till adressen som är satt i sökfältet (referencePoint)
       if (referencePoint) {
-        fromBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${data.lat},${data.lng}&destination=${referencePoint.lat},${referencePoint.lng}`;
-        fromBtn.classList.remove('disabled');
+        fromMenuBtn.classList.remove('disabled');
+        document.getElementById('d-from-google').href = `https://www.google.com/maps/dir/?api=1&origin=${data.lat},${data.lng}&destination=${referencePoint.lat},${referencePoint.lng}`;
+        document.getElementById('d-from-apple').href = `https://maps.apple.com/?saddr=${data.lat},${data.lng}&daddr=${referencePoint.lat},${referencePoint.lng}`;
+        // Waze stödjer tyvärr ingen egen startpunkt - blir alltid från din nuvarande position till målet
+        document.getElementById('d-from-waze').href = `https://waze.com/ul?ll=${referencePoint.lat},${referencePoint.lng}&navigate=yes`;
       } else {
-        fromBtn.href = '#';
-        fromBtn.classList.add('disabled');
+        fromMenuBtn.classList.add('disabled');
       }
     } else {
-      hitBtn.href = '#';
-      fromBtn.href = '#';
-      hitBtn.classList.add('disabled');
-      fromBtn.classList.add('disabled');
+      hitMenuBtn.classList.add('disabled');
+      fromMenuBtn.classList.add('disabled');
     }
+    document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
     detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
     detailCard.classList.add('open');
   }
+  function toggleNavMenu(btnId, menuId) {
+    document.getElementById(btnId).addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menu = document.getElementById(menuId);
+      const isOpen = menu.classList.contains('show');
+      document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
+      if (!isOpen) menu.classList.add('show');
+    });
+  }
+  toggleNavMenu('d-nav-hit-btn', 'd-nav-hit-menu');
+  toggleNavMenu('d-nav-from-btn', 'd-nav-from-menu');
+  document.querySelectorAll('.nav-menu').forEach(menu => {
+    menu.addEventListener('click', (e) => { if (e.target.tagName === 'A') menu.classList.remove('show'); });
+  });
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-menu.show').forEach(menu => {
+      if (!menu.contains(e.target) && e.target.id !== 'd-nav-hit-btn' && e.target.id !== 'd-nav-from-btn') {
+        menu.classList.remove('show');
+      }
+    });
+  });
   function closeDetailCard() {
     detailCard.classList.remove('open');
     clearHighlight();
     selectedSpotKey = null;
+    refreshOpenDetail = null;
+    document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
     renderNearestList();
   }
   document.getElementById('d-close').addEventListener('click', closeDetailCard);
@@ -1384,6 +1464,7 @@
   // ---------- Hitta mig (riktig geolokalisering) ----------
   let userLocationMarker = null;
   const locateBtn = document.getElementById('locate-btn');
+  const locateIconHTML = locateBtn.innerHTML;
   locateBtn.addEventListener('click', () => {
     if (!navigator.geolocation) {
       alert('Den här webbläsaren stödjer inte platsdelning.');
@@ -1409,11 +1490,11 @@
         closeDetailCard();
         updateReferencePoint(latitude, longitude);
         locateBtn.classList.remove('locating');
-        locateBtn.textContent = '⌖';
+        locateBtn.innerHTML = locateIconHTML;
       },
       (err) => {
         locateBtn.classList.remove('locating');
-        locateBtn.textContent = '⌖';
+        locateBtn.innerHTML = locateIconHTML;
         alert('Kunde inte hämta din position. Kontrollera att platsdelning är tillåten för sidan.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
