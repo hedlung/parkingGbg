@@ -1387,7 +1387,7 @@
         map.setView([item.lat, item.lng], 16);
       }
       searchClear.classList.add('show');
-      searchInput.blur(); // göm tangentbordet efter valt förslag
+      setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
       closeDetailCard();
     });
     return row;
