@@ -319,7 +319,7 @@
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: var(--shadow);
-    padding: 13px 16px;
+    padding: 11px 16px;
     transform: translateY(140%);
     transition: transform 0.25s cubic-bezier(.2,.8,.3,1);
   }
@@ -327,9 +327,11 @@
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
   #detail-card .badge {
     display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
-    padding: 3px 8px; border-radius: 6px; margin-bottom: 4px;
+    padding: 3px 8px; border-radius: 6px;
     background: var(--panel-2); color: var(--text-dim);
+    flex: 0 0 auto; margin-left: 40px;
   }
+  .title-row { display: flex; align-items: center; }
   .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
   .d-swatch.circle { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .d-swatch.triangle {
@@ -348,7 +350,7 @@
   #detail-card.no-stats .stats { display: none; }
   #detail-card .stats {
     display: flex; align-items: center; justify-content: space-between;
-    margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;
+    margin-top: 6px; border-top: 1px solid var(--border); padding-top: 7px;
   }
   .cost-block, .dist-block { flex: 0 0 auto; }
   .cost-block .v, .dist-block .v { font-size: 18px; font-weight: 700; }
@@ -356,7 +358,7 @@
   .slots-badge {
     font-size: 11px; font-weight: 700; color: var(--text-dim);
     background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
-    margin-left: 44px;
+    margin-left: 84px;
   }
   #detail-card.no-stats .slots-badge { display: none; }
   .nav-wrap { position: relative; flex: 0 0 auto; margin-left: 14px; }
@@ -457,8 +459,10 @@
   <div id="detail-card">
     <div class="top-row">
       <div>
-        <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
-        <h2 id="d-title">Vasagatan</h2>
+        <div class="title-row">
+          <h2 id="d-title">Vasagatan</h2>
+          <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
+        </div>
         <div class="addr-row">
           <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
           <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
@@ -1367,9 +1371,11 @@
         const number = a.house_number ? ' ' + a.house_number : '';
         const shortAddress = (street + number).trim() || result.display_name || 'Din plats';
         searchInput.value = shortAddress;
+        searchClear.classList.add('show');
       })
       .catch(() => {
         searchInput.value = 'Din plats';
+        searchClear.classList.add('show');
       });
   }
 
