@@ -325,13 +325,16 @@
   }
   #detail-card.open { transform: translateY(0); }
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .info-grid {
+    display: grid; grid-template-columns: 1fr auto;
+    align-items: center; column-gap: 10px; row-gap: 3px;
+  }
   #detail-card .badge {
     display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 700;
     padding: 3px 8px; border-radius: 6px;
     background: var(--panel-2); color: var(--text-dim);
-    flex: 0 0 auto; margin-left: 40px;
+    justify-self: start;
   }
-  .title-row { display: flex; align-items: center; }
   .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
   .d-swatch.circle { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .d-swatch.triangle {
@@ -339,8 +342,7 @@
     border-left: 5px solid transparent; border-right: 5px solid transparent;
     border-bottom: 8px solid currentColor;
   }
-  #detail-card h2 { font-size: 15px; margin: 0; }
-  .addr-row { display: flex; align-items: center; gap: 8px; margin-top: 1px; }
+  #detail-card h2 { font-size: 15px; margin: 0; line-height: 1.3; }
   #detail-card .addr { font-size: 12px; color: var(--text-dim); }
   #detail-card .close-x {
     width: 34px; height: 34px; border-radius: 50%;
@@ -357,29 +359,18 @@
   .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
   .slots-badge {
     font-size: 11px; font-weight: 700; color: var(--text-dim);
-    background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
-    margin-left: 84px;
+    background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+    justify-self: start;
   }
   #detail-card.no-stats .slots-badge { display: none; }
-  .nav-wrap { position: relative; flex: 0 0 auto; margin-left: 14px; }
-  #d-nav-btn {
-    width: auto; height: 38px; padding: 0 16px; border-radius: 10px;
+  .nav-wrap { display: flex; gap: 8px; flex: 0 0 auto; margin-left: 14px; }
+  .nav-btn {
+    height: 38px; padding: 0 14px; border-radius: 10px;
     background: var(--accent); border: none; color: white;
     font-size: 13.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;
-    white-space: nowrap;
+    white-space: nowrap; text-decoration: none;
   }
-  #d-nav-menu {
-    display: none; position: absolute; bottom: 46px; right: 0;
-    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow); overflow: hidden; min-width: 140px; z-index: 10;
-  }
-  #d-nav-menu.show { display: block; }
-  #d-nav-menu a {
-    display: block; padding: 10px 14px; font-size: 13px; font-weight: 600;
-    color: var(--text); text-decoration: none; white-space: nowrap; text-align: center;
-  }
-  #d-nav-menu a:not(:last-child) { border-bottom: 1px solid var(--border); }
-  #d-nav-menu a:active { background: var(--panel); }
+  .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
 
   /* ---- "Hitta mig" ---- */
   #locate-btn {
@@ -458,15 +449,11 @@
 
   <div id="detail-card">
     <div class="top-row">
-      <div>
-        <div class="title-row">
-          <h2 id="d-title">Vasagatan</h2>
-          <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
-        </div>
-        <div class="addr-row">
-          <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
-          <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
-        </div>
+      <div class="info-grid">
+        <h2 id="d-title">Vasagatan</h2>
+        <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
+        <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
+        <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
       </div>
       <div class="close-x" id="d-close">✕</div>
     </div>
@@ -480,20 +467,26 @@
         <div class="k">avstånd</div>
       </div>
       <div class="nav-wrap">
-        <button id="d-nav-btn" aria-label="Navigera hit">
-          <svg viewBox="0 0 24 24" width="20" height="20">
+        <a id="d-nav-hit" class="nav-btn" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="18" height="18">
             <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
             <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
               <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
             </g>
           </svg>
-          Navigera
-        </button>
-        <div id="d-nav-menu">
-          <a href="#" id="d-google" target="_blank" rel="noopener">Google Maps</a>
-          <a href="#" id="d-waze" target="_blank" rel="noopener">Waze</a>
-        </div>
+          Hit
+        </a>
+        <a id="d-nav-from" class="nav-btn" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <rect x="5" y="5" width="14" height="14" rx="3" fill="white" transform="rotate(45 12 12)"/>
+            <g transform="translate(12,12) scale(0.5) translate(-12,-12)">
+              <polyline points="15 14 20 9 15 4" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 20v-7a4 4 0 0 1 4-4h12" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </g>
+          </svg>
+          Från
+        </a>
       </div>
     </div>
   </div>
@@ -1111,7 +1104,7 @@
       `;
       row.addEventListener('click', () => {
         const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng], [s.lat, s.lng]);
-        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 18 });
+        map.fitBounds(bounds, { paddingTopLeft: [40, 90], paddingBottomRight: [40, 230], maxZoom: 18 });
         closePanel();
         const cost = s.type === 'free' ? 'Gratis' : (() => {
           const c = computeCost(s.costParsed, calcTime, hours);
@@ -1172,33 +1165,29 @@
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
     document.getElementById('d-slots').textContent = data.slots;
-    const googleLink = document.getElementById('d-google');
-    const wazeLink = document.getElementById('d-waze');
+    const hitBtn = document.getElementById('d-nav-hit');
+    const fromBtn = document.getElementById('d-nav-from');
     if (data.lat != null && data.lng != null) {
-      googleLink.href = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`;
-      wazeLink.href = `https://waze.com/ul?ll=${data.lat},${data.lng}&navigate=yes`;
+      // Hit: ingen origin angiven - Google Maps använder automatiskt enhetens nuvarande position
+      hitBtn.href = `https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}`;
+      hitBtn.classList.remove('disabled');
+      // Från: från den valda parkeringen till adressen som är satt i sökfältet (referencePoint)
+      if (referencePoint) {
+        fromBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${data.lat},${data.lng}&destination=${referencePoint.lat},${referencePoint.lng}`;
+        fromBtn.classList.remove('disabled');
+      } else {
+        fromBtn.href = '#';
+        fromBtn.classList.add('disabled');
+      }
     } else {
-      googleLink.href = '#';
-      wazeLink.href = '#';
+      hitBtn.href = '#';
+      fromBtn.href = '#';
+      hitBtn.classList.add('disabled');
+      fromBtn.classList.add('disabled');
     }
-    document.getElementById('d-nav-menu').classList.remove('show');
     detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
     detailCard.classList.add('open');
   }
-  document.getElementById('d-nav-btn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    document.getElementById('d-nav-menu').classList.toggle('show');
-  });
-  document.getElementById('d-nav-menu').addEventListener('click', (e) => {
-    if (e.target.tagName === 'A') document.getElementById('d-nav-menu').classList.remove('show');
-  });
-  document.addEventListener('click', (e) => {
-    const menu = document.getElementById('d-nav-menu');
-    const btn = document.getElementById('d-nav-btn');
-    if (menu.classList.contains('show') && e.target !== btn && !menu.contains(e.target)) {
-      menu.classList.remove('show');
-    }
-  });
   function closeDetailCard() {
     detailCard.classList.remove('open');
     clearHighlight();
