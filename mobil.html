@@ -1382,6 +1382,7 @@
       (pos) => {
         const { latitude, longitude } = pos.coords;
         map.setView([latitude, longitude], 16);
+        if (referenceMarker) { map.removeLayer(referenceMarker); referenceMarker = null; }
         if (userLocationMarker) {
           userLocationMarker.setLatLng([latitude, longitude]);
         } else {
@@ -1389,6 +1390,8 @@
             radius: 8, color: '#fff', weight: 3, fillColor: '#3b82f6', fillOpacity: 1
           }).addTo(map);
         }
+        searchInput.value = '';
+        searchClear.classList.remove('show');
         updateReferencePoint(latitude, longitude);
         locateBtn.classList.remove('locating');
         locateBtn.textContent = '⌖';
