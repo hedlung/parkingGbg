@@ -212,8 +212,8 @@
   }
   .nearest-row:last-child { border-bottom: none; }
   .nearest-row.active {
-    background: rgba(239,68,68,0.12);
-    border-left: 3px solid #ef4444;
+    background: rgba(34,197,94,0.15);
+    border-left: 3px solid #22c55e;
   }
   .nearest-row:active { background: rgba(255,255,255,0.04); }
   .nearest-swatch { width: 12px; height: 12px; border-radius: 3px; flex: 0 0 auto; }
@@ -706,6 +706,7 @@
           renderNearestList();
         };
         const shapes = parseWKT(spot.wkt);
+        spot.leafletLayers = [];
         if (shapes.length > 0) {
           shapes.forEach(shape => {
             const layer = shape.type === 'polygon'
@@ -713,10 +714,12 @@
               : L.polyline(shape.latlngs, { color: taxa.color, weight: 5, opacity: 0.85 });
             layer.on('click', onClick);
             layer.addTo(group);
+            spot.leafletLayers.push(layer);
           });
         } else {
           const marker = L.marker([spot.lat, spot.lng], { icon: makeIcon(taxa.color, taxa.code) }).addTo(group);
           marker.on('click', onClick);
+          spot.leafletLayers.push(marker);
         }
       });
       markerLayers[taxa.id] = group;
@@ -739,6 +742,7 @@
           renderNearestList();
         };
         const shapes = parseWKT(spot.wkt);
+        spot.leafletLayers = [];
         if (shapes.length > 0) {
           shapes.forEach(shape => {
             const layer = shape.type === 'polygon'
@@ -746,10 +750,12 @@
               : L.polyline(shape.latlngs, { color: free.color, weight: 5, opacity: 0.85 });
             layer.on('click', onClick);
             layer.addTo(group);
+            spot.leafletLayers.push(layer);
           });
         } else {
           const marker = L.marker([spot.lat, spot.lng], { icon: makeFreeTriangleIcon(free.color) }).addTo(group);
           marker.on('click', onClick);
+          spot.leafletLayers.push(marker);
         }
       });
       markerLayers[free.id] = group;
@@ -967,21 +973,26 @@
     clearHighlight();
     if (shapes && shapes.length > 0) {
       shapes.forEach(shape => {
+        // Röd halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
         const hl = shape.type === 'polygon'
-          ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 3, fillOpacity: 0, opacity: 0.9, interactive: false })
-          : L.polyline(shape.latlngs, { color: '#ef4444', weight: 8, opacity: 0.85, interactive: false });
+          ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 7, fillOpacity: 0, opacity: 0.9, interactive: false })
+          : L.polyline(shape.latlngs, { color: '#ef4444', weight: 12, opacity: 0.85, interactive: false });
         hl.addTo(map);
         currentHighlightLayers.push(hl);
       });
     } else {
-      const hl = L.circleMarker([spot.lat, spot.lng], { radius: 13, color: '#ef4444', weight: 3, fillOpacity: 0, interactive: false });
+      const hl = L.circleMarker([spot.lat, spot.lng], { radius: 14, color: '#ef4444', weight: 4, fillOpacity: 0, interactive: false });
       hl.addTo(map);
       currentHighlightLayers.push(hl);
+    }
+    // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå den röda halon
+    if (spot.leafletLayers) {
+      spot.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
     }
     if (referencePoint) {
       const line = L.polyline(
         [[referencePoint.lat, referencePoint.lng], [spot.lat, spot.lng]],
-        { color: '#ef4444', weight: 1.5, opacity: 0.6, dashArray: '4,4', interactive: false }
+        { color: '#ef4444', weight: 3, opacity: 0.6, dashArray: '12,10', interactive: false }
       );
       line.addTo(map);
       currentHighlightLayers.push(line);
@@ -1005,11 +1016,11 @@
     const spots = [];
     FREE_ORDER.forEach(label => {
       const f = FREE_GROUPS[label];
-      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color, slots: s.slots, badge: f.label.toUpperCase(), wkt: s.wkt }));
+      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color, slots: s.slots, badge: f.label.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers }));
     });
     TAXA_ORDER.forEach(code => {
       const t = TAXA_GROUPS[code];
-      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color, slots: s.slots, badge: t.name.toUpperCase(), wkt: s.wkt }));
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color, slots: s.slots, badge: t.name.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers }));
     });
     return spots;
   }
