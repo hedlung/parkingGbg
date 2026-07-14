@@ -1051,34 +1051,40 @@
     currentHighlightLayers.forEach(l => map.removeLayer(l));
     currentHighlightLayers = [];
   }
-  function highlightSpot(spot, shapes) {
+  function highlightSpots(items) {
     clearHighlight();
-    if (shapes && shapes.length > 0) {
-      shapes.forEach(shape => {
-        // Röd halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
-        const hl = shape.type === 'polygon'
-          ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 7, fillOpacity: 0, opacity: 0.9, interactive: false })
-          : L.polyline(shape.latlngs, { color: '#ef4444', weight: 12, opacity: 0.85, interactive: false });
+    items.forEach(item => {
+      const shapes = item.shapes || (item.wkt ? parseWKT(item.wkt) : []);
+      if (shapes && shapes.length > 0) {
+        shapes.forEach(shape => {
+          // Röd halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
+          const hl = shape.type === 'polygon'
+            ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 7, fillOpacity: 0, opacity: 0.9, interactive: false })
+            : L.polyline(shape.latlngs, { color: '#ef4444', weight: 12, opacity: 0.85, interactive: false });
+          hl.addTo(map);
+          currentHighlightLayers.push(hl);
+        });
+      } else {
+        const hl = L.circleMarker([item.lat, item.lng], { radius: 14, color: '#ef4444', weight: 4, fillOpacity: 0, interactive: false });
         hl.addTo(map);
         currentHighlightLayers.push(hl);
-      });
-    } else {
-      const hl = L.circleMarker([spot.lat, spot.lng], { radius: 14, color: '#ef4444', weight: 4, fillOpacity: 0, interactive: false });
-      hl.addTo(map);
-      currentHighlightLayers.push(hl);
-    }
-    // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå den röda halon
-    if (spot.leafletLayers) {
-      spot.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
-    }
-    if (referencePoint) {
-      const line = L.polyline(
-        [[referencePoint.lat, referencePoint.lng], [spot.lat, spot.lng]],
-        { color: '#ef4444', weight: 3, opacity: 0.6, dashArray: '12,10', interactive: false }
-      );
-      line.addTo(map);
-      currentHighlightLayers.push(line);
-    }
+      }
+      // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå den röda halon
+      if (item.leafletLayers) {
+        item.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
+      }
+      if (referencePoint) {
+        const line = L.polyline(
+          [[referencePoint.lat, referencePoint.lng], [item.lat, item.lng]],
+          { color: '#ef4444', weight: 3, opacity: 0.6, dashArray: '12,10', interactive: false }
+        );
+        line.addTo(map);
+        currentHighlightLayers.push(line);
+      }
+    });
+  }
+  function highlightSpot(spot, shapes) {
+    highlightSpots([{ ...spot, shapes }]);
   }
 
 
@@ -1121,9 +1127,25 @@
     }
     const visible = visibleIds();
     const hours = getDurationHours();
-    const nearest = collectAllSpots()
+    const withDist = collectAllSpots()
       .filter(s => visible.includes(s.groupId) && checkedState[s.groupId])
-      .map(s => ({ ...s, dist: haversineMeters(referencePoint.lat, referencePoint.lng, s.lat, s.lng) }))
+      .map(s => ({ ...s, dist: haversineMeters(referencePoint.lat, referencePoint.lng, s.lat, s.lng) }));
+
+    // Klumpar ihop segment med samma namn + samma taxa/gratiskategori till en rad
+    const groups = {};
+    let groupOrder = [];
+    withDist.forEach(s => {
+      const key = s.groupId + '|' + s.name;
+      if (!groups[key]) {
+        groups[key] = { ...s, members: [s], dist: s.dist };
+        groupOrder.push(key);
+      } else {
+        const g = groups[key];
+        g.members.push(s);
+        if (s.dist < g.dist) g.dist = s.dist; // visa avståndet till det närmaste segmentet
+      }
+    });
+    const nearest = groupOrder.map(key => groups[key])
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 25);
 
@@ -1136,11 +1158,15 @@
     listEl.innerHTML = '';
     nearest.forEach(s => {
       const row = document.createElement('div');
-      row.className = 'nearest-row' + (spotKey(s.groupId, s.lat, s.lng) === selectedSpotKey ? ' active' : '');
+      const isActive = s.members.some(m => spotKey(m.groupId, m.lat, m.lng) === selectedSpotKey);
+      row.className = 'nearest-row' + (isActive ? ' active' : '');
       const cost = s.type === 'free' ? s.freeLabel : (() => {
         const c = computeCost(s.costParsed, calcTime, hours);
         return c !== null ? c + ' kr' : '—';
       })();
+      // Slår ihop antal platser från alla segment i gruppen, om det går att räkna
+      const slotNumbers = s.members.map(m => m.slots).filter(v => typeof v === 'number');
+      const combinedSlots = slotNumbers.length > 0 ? slotNumbers.reduce((a, b) => a + b, 0) : '—';
       row.innerHTML = `
         <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" style="${s.type === 'free' ? 'border-bottom-color' : 'background'}:${s.color}"></div>
         <div class="nearest-name">${s.name}</div>
@@ -1148,27 +1174,30 @@
         <div class="nearest-cost">${cost}</div>
       `;
       row.addEventListener('click', () => {
-        const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng], [s.lat, s.lng]);
+        // Närmaste segmentet i gruppen används som representant för detaljkort/navigering
+        const closest = s.members.reduce((a, b) => (a.dist < b.dist ? a : b));
+        const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng]);
+        s.members.forEach(m => bounds.extend([m.lat, m.lng]));
         map.fitBounds(bounds, { paddingTopLeft: [40, 90], paddingBottomRight: [40, 230], maxZoom: 18 });
         closePanel();
         const showDetail = () => {
           const h = getDurationHours();
-          const cost = s.type === 'free' ? 'Gratis' : (() => {
-            const c = computeCost(s.costParsed, calcTime, h);
+          const cost2 = s.type === 'free' ? 'Gratis' : (() => {
+            const c = computeCost(closest.costParsed, calcTime, h);
             return c !== null ? c + ' kr' : '—';
           })();
           openDetail({
             badge: s.badge, title: s.name, addr: 'Göteborg',
-            cost, dist: formatDistance(s.dist), slots: s.slots ?? '—',
+            cost: cost2, dist: formatDistance(closest.dist), slots: combinedSlots,
             costLabel: s.type === 'taxa' ? 'för ' + formatHours(h) : 'vald tid: ' + formatHours(h),
             swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
-            lat: s.lat, lng: s.lng
+            lat: closest.lat, lng: closest.lng
           });
         };
         showDetail();
         refreshOpenDetail = showDetail;
-        highlightSpot(s, parseWKT(s.wkt));
-        selectedSpotKey = spotKey(s.groupId, s.lat, s.lng);
+        highlightSpots(s.members);
+        selectedSpotKey = spotKey(closest.groupId, closest.lat, closest.lng);
         renderNearestList();
       });
       listEl.appendChild(row);
@@ -1339,6 +1368,7 @@
   const suggestionsBox = document.getElementById('search-suggestions');
   let searchDebounceTimer = null;
   let lastLocalMatches = [];
+  let suggestionSelected = false; // sant om användaren redan valt ett förslag - då ska inga försenade svar dyka upp igen
   let referenceMarker = null;
 
   // Alla platsnamn vi känner till lokalt (taxor + gratiskategorier), utan dubbletter
@@ -1377,6 +1407,8 @@
     `;
     row.addEventListener('mousedown', (e) => {
       e.preventDefault(); // hindra att inputen tappar fokus innan klicket hinner registreras
+      suggestionSelected = true;
+      clearTimeout(searchDebounceTimer);
       searchInput.value = item.label;
       suggestionsBox.classList.remove('show');
       if (item.type === 'gata') {
@@ -1404,6 +1436,7 @@
     const query = searchInput.value.trim();
     searchClear.classList.toggle('show', query.length > 0);
     clearTimeout(searchDebounceTimer);
+    suggestionSelected = false;
     if (query.length < 2) {
       suggestionsBox.classList.remove('show');
       return;
@@ -1421,6 +1454,7 @@
       fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
         .then(r => r.json())
         .then(results => {
+          if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
           const addressMatches = results.map(r => ({
             type: 'address', label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon)
           }));
