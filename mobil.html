@@ -464,16 +464,50 @@
     const m = charge && charge.match(/Taxa\s+(\w+)/i);
     return m ? m[1].toUpperCase() : null;
   }
-  // Enkel kr/tim-tolkning av ParkingCost-texten - en förenkling tills vidare (se punkt E för riktig dag/natt-uträkning)
-  function parseSimpleRate(costText) {
-    if (!costText) return null;
-    let m = costText.match(/(\d+)\s*kr\s*\/\s*tim/i);
-    if (m) return parseInt(m[1]);
-    m = costText.match(/(\d+)\s*kr\s*\/\s*30\s*min/i);
-    if (m) return parseInt(m[1]) * 2;
-    m = costText.match(/(\d+)\s*kr/i);
-    if (m) return parseInt(m[1]);
-    return null;
+
+  // ---- Kostnadsparsning och -beräkning, samma logik som webbversionen ----
+  // Tolkar strängar av typen "34 kr/tim 8-22 alla dagar. Övrig tid: 2 kr/tim. Maxtaxa 50 kr/dag"
+  const COST_RE = /(\d+)\s*kr\/(tim|30\s*min)\s+(\d{1,2})\s*-\s*(\d{1,2})\s+alla dagar\s*[.,]?\s*(?:Övrig tid:\s*(\d+)\s*kr\/tim)?\s*[.,]?\s*(?:[Mm]axtaxa\s*(\d+)\s*kr\/dag)?/;
+
+  function parseCostString(costStr) {
+    if (!costStr) return null;
+    const m = costStr.match(COST_RE);
+    if (!m) return null;
+    const dayRate = parseFloat(m[1]);
+    const dayUnitMinutes = m[2].replace(/\s/g, '') === '30min' ? 30 : 60;
+    const dayStart = parseInt(m[3]);
+    const dayEnd = parseInt(m[4]);
+    const nightRate = m[5] !== undefined ? parseFloat(m[5]) : 0;
+    const maxTaxa = m[6] !== undefined ? parseFloat(m[6]) : null;
+    return {
+      dayRatePerMinute: dayRate / dayUnitMinutes,
+      nightRatePerMinute: nightRate / 60,
+      dayStart, dayEnd, maxTaxa
+    };
+  }
+
+  // Räknar ihop kostnad från "start" och durationHours timmar framåt, med maxtaxa applicerad per kalenderdygn
+  function computeCost(parsed, start, durationHours) {
+    if (!parsed) return null;
+    let remainingMinutes = Math.round(durationHours * 60);
+    let cursor = new Date(start);
+    const dailyCost = {};
+    while (remainingMinutes > 0) {
+      const dayKey = cursor.toDateString();
+      const hour = cursor.getHours() + cursor.getMinutes() / 60;
+      const inDayWindow = hour >= parsed.dayStart && hour < parsed.dayEnd;
+      const ratePerMinute = inDayWindow ? parsed.dayRatePerMinute : parsed.nightRatePerMinute;
+      dailyCost[dayKey] = (dailyCost[dayKey] || 0) + ratePerMinute;
+      cursor = new Date(cursor.getTime() + 60000);
+      remainingMinutes -= 1;
+    }
+    let total = 0;
+    for (const day in dailyCost) {
+      let cost = dailyCost[day];
+      if (parsed.maxTaxa !== null) cost = Math.min(cost, parsed.maxTaxa);
+      total += cost;
+    }
+    return Math.round(total);
   }
   function taxaSortKey(code) {
     const n = parseInt(code);
@@ -582,7 +616,13 @@
       const code = extractTaxa(p.ParkingCharge);
       if (!code || !p.Lat || !p.Long) return;
       if (!TAXA_GROUPS[code]) {
-        TAXA_GROUPS[code] = { id: 'taxa-' + code, code, name: 'Taxa ' + code, color: null, perHour: parseSimpleRate(p.ParkingCost), rules: p.ParkingCost || '', spots: [] };
+        TAXA_GROUPS[code] = {
+          id: 'taxa-' + code, code, name: 'Taxa ' + code, color: null,
+          costParsed: parseCostString(p.ParkingCost),
+          maxMinutes: parseMaxParkingMinutes(p.MaxParkingTime),
+          maxTimeLabel: p.MaxParkingTime || null,
+          rules: p.ParkingCost || '', spots: []
+        };
       }
       TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT });
     });
@@ -631,15 +671,18 @@
       const taxa = TAXA_GROUPS[code];
       const group = L.layerGroup().addTo(map);
       taxa.spots.forEach(spot => {
-        const onClick = () => openDetail({
-          badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
-          cost: (taxa.perHour ? Math.round(taxa.perHour * getDurationHours()) + ' kr' : '—'),
-          dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
-          slots: spot.slots ?? '—',
-          costLabel: taxa.perHour ? 'för ' + formatHours(getDurationHours()) : '',
-          swatchColor: taxa.color, swatchShape: 'circle',
-          lat: spot.lat, lng: spot.lng
-        });
+        const onClick = () => {
+          const cost = computeCost(taxa.costParsed, calcTime, getDurationHours());
+          openDetail({
+            badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
+            cost: (cost !== null ? cost + ' kr' : '—'),
+            dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
+            slots: spot.slots ?? '—',
+            costLabel: cost !== null ? 'för ' + formatHours(getDurationHours()) : '',
+            swatchColor: taxa.color, swatchShape: 'circle',
+            lat: spot.lat, lng: spot.lng
+          });
+        };
         const shapes = parseWKT(spot.wkt);
         if (shapes.length > 0) {
           shapes.forEach(shape => {
@@ -775,13 +818,13 @@
   let showOnlyFree = false;
 
   function fitsDuration(item) {
-    if (!item.maxMinutes) return true; // taxor har ingen övre gräns i denna skiss (se punkt F)
+    if (!item.maxMinutes) return true; // ingen maxtid angiven för denna taxa/kategori
     return getDurationHours() * 60 <= item.maxMinutes;
   }
 
   function visibleIds() {
     const freeIds = FREE_ORDER.map(l => FREE_GROUPS[l]).filter(fitsDuration).map(f => f.id);
-    const taxaIds = showOnlyFree ? [] : TAXA_ORDER.map(c => TAXA_GROUPS[c].id);
+    const taxaIds = showOnlyFree ? [] : TAXA_ORDER.map(c => TAXA_GROUPS[c]).filter(fitsDuration).map(t => t.id);
     return [...freeIds, ...taxaIds];
   }
 
@@ -806,12 +849,14 @@
     if (!showOnlyFree) {
       TAXA_ORDER.forEach(code => {
         const taxa = TAXA_GROUPS[code];
+        if (!fitsDuration(taxa)) return; // döljs helt om vald tid är längre än taxans maxtid
+        const cost = computeCost(taxa.costParsed, calcTime, hours);
         const row = document.createElement('div');
         row.className = 'taxa-row';
         row.innerHTML = `
           <div class="taxa-swatch" style="background:${taxa.color}"></div>
           <div class="taxa-name">Taxa ${taxa.code}</div>
-          <div class="taxa-price">${taxa.perHour ? Math.round(taxa.perHour * hours) + ' kr' : '—'}</div>
+          <div class="taxa-price">${cost !== null ? cost + ' kr' : '—'}</div>
           <div class="info-btn" data-info="${taxa.id}">ⓘ</div>
           <div class="taxa-checkbox ${checkedState[taxa.id] ? 'on' : ''}" data-id="${taxa.id}">✓</div>
         `;
@@ -903,7 +948,7 @@
     });
     TAXA_ORDER.forEach(code => {
       const t = TAXA_GROUPS[code];
-      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, perHour: t.perHour, color: t.color }));
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color }));
     });
     return spots;
   }
@@ -938,7 +983,10 @@
     nearest.forEach(s => {
       const row = document.createElement('div');
       row.className = 'nearest-row';
-      const cost = s.type === 'free' ? s.freeLabel : Math.round(s.perHour * hours) + ' kr';
+      const cost = s.type === 'free' ? s.freeLabel : (() => {
+        const c = computeCost(s.costParsed, calcTime, hours);
+        return c !== null ? c + ' kr' : '—';
+      })();
       row.innerHTML = `
         <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" style="${s.type === 'free' ? 'border-bottom-color' : 'background'}:${s.color}"></div>
         <div class="nearest-name">${s.name}</div>
@@ -972,10 +1020,14 @@
   }
   let calcTime = new Date();
   document.getElementById('calc-time').textContent = formatClock(calcTime);
-  document.getElementById('calc-now-btn').addEventListener('click', () => {
+  function refreshCalcTime() {
     calcTime = new Date();
     document.getElementById('calc-time').textContent = formatClock(calcTime);
-  });
+    renderTaxaList(); // räknar om priser och maxtidsspärrar med den nya tiden
+  }
+  document.getElementById('calc-now-btn').addEventListener('click', refreshCalcTime);
+  // Klockan går vidare även om ingen rör appen - uppdatera automatiskt var 5:e minut
+  setInterval(refreshCalcTime, 5 * 60 * 1000);
 
   // ---------- Detaljkort ----------
   const detailCard = document.getElementById('detail-card');
