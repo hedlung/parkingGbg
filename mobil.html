@@ -313,6 +313,25 @@
   .mini-btn:disabled { opacity: 0.45; }
 
   /* ---- Nedre detaljkort (vid vald pin) ---- */
+  #waze-warning-overlay {
+    display: none; position: absolute; inset: 0; z-index: 900;
+    background: rgba(0,0,0,0.5);
+    align-items: center; justify-content: center;
+  }
+  #waze-warning-overlay.show { display: flex; }
+  #waze-warning-box {
+    width: calc(100% - 56px); max-width: 320px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow); padding: 18px;
+  }
+  #waze-warning-box p { font-size: 13.5px; color: var(--text); line-height: 1.5; margin: 0 0 16px 0; }
+  .waze-warning-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .waze-warning-actions button {
+    padding: 9px 16px; border-radius: 9px; font-size: 13.5px; font-weight: 700;
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  #waze-warning-ok { background: var(--accent); border-color: var(--accent); color: white; }
+
   #detail-card {
     position: absolute; left: 12px; right: 12px; bottom: 6px; z-index: 700;
     background: var(--panel);
@@ -467,6 +486,16 @@
     </div>
   </div>
 
+  <div id="waze-warning-overlay">
+    <div id="waze-warning-box">
+      <p>Waze fungerar bara som tänkt om du redan har parkerat och är på väg vidare till målet. Annars startar Waze från din nuvarande position istället för från parkeringen.</p>
+      <div class="waze-warning-actions">
+        <button id="waze-warning-cancel">Avbryt</button>
+        <button id="waze-warning-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
   <div id="detail-card">
     <div class="top-row">
       <div class="info-grid">
@@ -518,7 +547,7 @@
           <div class="nav-menu" id="d-nav-from-menu">
             <a id="d-from-google" target="_blank" rel="noopener">Google Maps</a>
             <a id="d-from-apple" target="_blank" rel="noopener">Apple Kartor</a>
-            <a id="d-from-waze" target="_blank" rel="noopener">Waze</a>
+            <a id="d-from-waze" target="_blank" rel="noopener">(Waze)</a>
           </div>
         </div>
       </div>
@@ -1183,8 +1212,8 @@
       row.addEventListener('click', () => {
         // Närmaste segmentet i gruppen används som representant för detaljkort/navigering
         const closest = s.members.reduce((a, b) => (a.dist < b.dist ? a : b));
-        const bounds = L.latLngBounds([referencePoint.lat, referencePoint.lng]);
-        s.members.forEach(m => bounds.extend([m.lat, m.lng]));
+        const allPoints = [[referencePoint.lat, referencePoint.lng], ...s.members.map(m => [m.lat, m.lng])];
+        const bounds = L.latLngBounds(allPoints);
         map.fitBounds(bounds, { paddingTopLeft: [40, 90], paddingBottomRight: [40, 230], maxZoom: 18 });
         closePanel();
         const showDetail = () => {
@@ -1291,6 +1320,24 @@
     });
   }
   toggleNavMenu('d-nav-hit-btn', 'd-nav-hit-menu');
+
+  // Waze i Från-läget fungerar bara som tänkt om man redan parkerat - varna innan navigering
+  let pendingWazeHref = null;
+  const wazeOverlay = document.getElementById('waze-warning-overlay');
+  document.getElementById('d-from-waze').addEventListener('click', (e) => {
+    e.preventDefault();
+    pendingWazeHref = e.currentTarget.href;
+    wazeOverlay.classList.add('show');
+  });
+  document.getElementById('waze-warning-cancel').addEventListener('click', () => {
+    wazeOverlay.classList.remove('show');
+    pendingWazeHref = null;
+  });
+  document.getElementById('waze-warning-ok').addEventListener('click', () => {
+    if (pendingWazeHref) window.open(pendingWazeHref, '_blank', 'noopener');
+    wazeOverlay.classList.remove('show');
+    pendingWazeHref = null;
+  });
   toggleNavMenu('d-nav-from-btn', 'd-nav-from-menu');
   document.querySelectorAll('.nav-menu').forEach(menu => {
     menu.addEventListener('click', (e) => { if (e.target.tagName === 'A') menu.classList.remove('show'); });
