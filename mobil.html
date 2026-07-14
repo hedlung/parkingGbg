@@ -350,9 +350,14 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px;
   }
-  .cost-block, .dist-block, .slots-block { flex: 0 0 auto; }
-  .cost-block .v, .dist-block .v, .slots-block .v { font-size: 18px; font-weight: 700; }
-  .cost-block .k, .dist-block .k, .slots-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+  .cost-block, .dist-block { flex: 0 0 auto; }
+  .cost-block .v, .dist-block .v { font-size: 18px; font-weight: 700; }
+  .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
+  .slots-badge {
+    font-size: 11px; font-weight: 700; color: var(--text-dim);
+    background: var(--panel-2); padding: 5px 10px; border-radius: 999px; white-space: nowrap; flex: 0 0 auto;
+  }
+  #detail-card.no-stats .slots-badge { display: none; }
   .nav-wrap { position: relative; flex: 0 0 auto; margin-left: 14px; }
   #d-nav-btn {
     width: auto; height: 38px; padding: 0 16px; border-radius: 10px;
@@ -468,10 +473,7 @@
         <div class="v" id="d-dist">180 m</div>
         <div class="k">avstånd</div>
       </div>
-      <div class="slots-block">
-        <div class="v" id="d-slots">6</div>
-        <div class="k">platser</div>
-      </div>
+      <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
       <div class="nav-wrap">
         <button id="d-nav-btn" aria-label="Navigera hit">
           <svg viewBox="0 0 24 24" width="20" height="20">
