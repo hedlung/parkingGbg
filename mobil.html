@@ -1195,12 +1195,13 @@
       menu.classList.remove('show');
     }
   });
-  document.getElementById('d-close').addEventListener('click', () => {
+  function closeDetailCard() {
     detailCard.classList.remove('open');
     clearHighlight();
     selectedSpotKey = null;
     renderNearestList();
-  });
+  }
+  document.getElementById('d-close').addEventListener('click', closeDetailCard);
 
   // ---------- Tema (knapp i topbaren) ----------
   const themeToggle = document.getElementById('theme-toggle');
@@ -1314,6 +1315,7 @@
       }
       searchClear.classList.add('show');
       searchInput.blur(); // göm tangentbordet efter valt förslag
+      closeDetailCard();
     });
     return row;
   }
@@ -1355,6 +1357,22 @@
     }, 400);
   });
 
+  // Omvänd geokodning: skriver en kort adress i sökfältet utifrån koordinater (används av Hitta mig)
+  function reverseGeocode(lat, lng) {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`)
+      .then(r => r.json())
+      .then(result => {
+        const a = result.address || {};
+        const street = a.road || a.pedestrian || a.neighbourhood || '';
+        const number = a.house_number ? ' ' + a.house_number : '';
+        const shortAddress = (street + number).trim() || result.display_name || 'Din plats';
+        searchInput.value = shortAddress;
+      })
+      .catch(() => {
+        searchInput.value = 'Din plats';
+      });
+  }
+
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.classList.remove('show');
@@ -1390,8 +1408,10 @@
             radius: 8, color: '#fff', weight: 3, fillColor: '#3b82f6', fillOpacity: 1
           }).addTo(map);
         }
-        searchInput.value = '';
+        searchInput.value = 'Hämtar adress…';
         searchClear.classList.remove('show');
+        reverseGeocode(latitude, longitude);
+        closeDetailCard();
         updateReferencePoint(latitude, longitude);
         locateBtn.classList.remove('locating');
         locateBtn.textContent = '⌖';
