@@ -155,7 +155,7 @@
   #panel-wrap.open #edge-tab .icon-close { opacity: 1; }
 
   #panel-wrap {
-    position: absolute; top: 68px; left: 12px; z-index: 590;
+    position: absolute; top: 68px; left: 12px; z-index: 750;
     width: min(86%, 360px);
     max-height: calc(100vh - 84px);
     max-height: calc(100dvh - 84px);
@@ -697,7 +697,7 @@
             cost: (cost !== null ? cost + ' kr' : '—'),
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
             slots: spot.slots ?? '—',
-            costLabel: cost !== null ? 'för ' + formatHours(getDurationHours()) : '',
+            costLabel: 'för ' + formatHours(getDurationHours()),
             swatchColor: taxa.color, swatchShape: 'circle',
             lat: spot.lat, lng: spot.lng
           });
@@ -734,6 +734,7 @@
             cost: 'Gratis',
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng)) : '—',
             slots: spot.slots ?? '—',
+            costLabel: 'vald tid: ' + formatHours(getDurationHours()),
             swatchColor: free.color, swatchShape: 'triangle',
             lat: spot.lat, lng: spot.lng
           });
@@ -1076,7 +1077,7 @@
         openDetail({
           badge: s.badge, title: s.name, addr: 'Göteborg',
           cost, dist: formatDistance(s.dist), slots: s.slots ?? '—',
-          costLabel: (s.type === 'taxa' && cost !== '—') ? 'för ' + formatHours(hours) : '',
+          costLabel: s.type === 'taxa' ? 'för ' + formatHours(hours) : 'vald tid: ' + formatHours(hours),
           swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
           lat: s.lat, lng: s.lng
         });
