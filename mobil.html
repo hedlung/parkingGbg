@@ -775,7 +775,7 @@
         const onClick = () => {
           showDetail();
           refreshOpenDetail = showDetail;
-          highlightSpot(spot, shapes);
+          highlightSpot(spot, shapes, 'taxa');
           selectedSpotKey = spotKey(taxa.id, spot.lat, spot.lng);
           renderNearestList();
         };
@@ -816,7 +816,7 @@
         const onClick = () => {
           showDetail();
           refreshOpenDetail = showDetail;
-          highlightSpot(spot, shapes);
+          highlightSpot(spot, shapes, 'free');
           selectedSpotKey = spotKey(free.id, spot.lat, spot.lng);
           renderNearestList();
         };
@@ -1054,37 +1054,44 @@
   function highlightSpots(items) {
     clearHighlight();
     items.forEach(item => {
+      const haloColor = item.type === 'free' ? '#ef4444' : '#39ff14'; // knallgrön för taxor, röd för gratis - så det syns oavsett originalfärg
       const shapes = item.shapes || (item.wkt ? parseWKT(item.wkt) : []);
       if (shapes && shapes.length > 0) {
         shapes.forEach(shape => {
-          // Röd halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
+          // Halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
           const hl = shape.type === 'polygon'
-            ? L.polygon(shape.latlngs, { color: '#ef4444', weight: 7, fillOpacity: 0, opacity: 0.9, interactive: false })
-            : L.polyline(shape.latlngs, { color: '#ef4444', weight: 12, opacity: 0.85, interactive: false });
+            ? L.polygon(shape.latlngs, { color: haloColor, weight: 7, fillOpacity: 0, opacity: 0.9, interactive: false })
+            : L.polyline(shape.latlngs, { color: haloColor, weight: 12, opacity: 0.85, interactive: false });
           hl.addTo(map);
           currentHighlightLayers.push(hl);
         });
       } else {
-        const hl = L.circleMarker([item.lat, item.lng], { radius: 14, color: '#ef4444', weight: 4, fillOpacity: 0, interactive: false });
+        const hl = L.circleMarker([item.lat, item.lng], { radius: 14, color: haloColor, weight: 4, fillOpacity: 0, interactive: false });
         hl.addTo(map);
         currentHighlightLayers.push(hl);
       }
-      // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå den röda halon
+      // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå halon
       if (item.leafletLayers) {
         item.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
       }
       if (referencePoint) {
-        const line = L.polyline(
+        // Svart/gul varningsrand: gul linje underst, svart streckad ovanpå så gapen visar gult
+        const lineYellow = L.polyline(
           [[referencePoint.lat, referencePoint.lng], [item.lat, item.lng]],
-          { color: '#ef4444', weight: 3, opacity: 0.6, dashArray: '12,10', interactive: false }
+          { color: '#eab308', weight: 4, opacity: 0.9, interactive: false }
         );
-        line.addTo(map);
-        currentHighlightLayers.push(line);
+        const lineBlack = L.polyline(
+          [[referencePoint.lat, referencePoint.lng], [item.lat, item.lng]],
+          { color: '#000000', weight: 4, opacity: 0.9, dashArray: '10,10', interactive: false }
+        );
+        lineYellow.addTo(map);
+        lineBlack.addTo(map);
+        currentHighlightLayers.push(lineYellow, lineBlack);
       }
     });
   }
-  function highlightSpot(spot, shapes) {
-    highlightSpots([{ ...spot, shapes }]);
+  function highlightSpot(spot, shapes, type) {
+    highlightSpots([{ ...spot, shapes, type }]);
   }
 
 
