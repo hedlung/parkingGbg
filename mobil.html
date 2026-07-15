@@ -328,6 +328,27 @@
     padding: 6px 0 10px 0;
   }
   #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; }
+
+  #price-filter-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  #price-slider { flex: 1; accent-color: var(--accent); height: 20px; }
+  #price-gratis-btn.at-zero { opacity: 0.4; }
+  #price-status-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 6px; padding: 4px 2px; font-size: 12px; color: var(--text-dim);
+    cursor: pointer;
+  }
+  #price-expand-arrow { font-size: 15px; transition: transform 0.2s ease; color: var(--text-dim); }
+  #price-status-row.expanded #price-expand-arrow { transform: rotate(90deg); }
+  #price-detail-list {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height 0.28s ease, opacity 0.22s ease;
+  }
+  #price-detail-list.expanded { max-height: 400px; opacity: 1; }
+  .price-detail-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 2px;
+    border-bottom: 1px solid var(--border); font-size: 12.5px;
+  }
+  .price-detail-row:last-child { border-bottom: none; }
   #duration-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 22px; height: 22px; border-radius: 50%;
@@ -570,11 +591,19 @@
         </div>
       </div>
 
-      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between">
-        <span>Parkeringar</span>
-        <button id="bulk-btn" class="mini-btn">Endast gratis</button>
+      <div class="section-label">Parkeringar</div>
+
+      <div id="price-filter-row">
+        <input type="range" id="price-slider" min="0" max="35" step="1" value="35">
+        <button id="price-gratis-btn" class="mini-btn">Gratis</button>
       </div>
-      <div id="taxa-list"><!-- fylls av JS, gratis-kategorier överst --></div>
+      <div id="price-status-row">
+        <span id="price-status-text">Max 35 kr — 8 av 8 taxor visas</span>
+        <span id="price-expand-arrow">›</span>
+      </div>
+      <div id="price-detail-list"><!-- fylls av JS: read-only lista över taxor inom budget --></div>
+
+      <div id="taxa-list"><!-- fylls av JS, bara gratis-kategorier nu --></div>
 
       <div id="theme-row">
         <div id="loaded-count">2 598 parkeringar laddade</div>
@@ -1166,8 +1195,9 @@
   // Fylls i onAllLoaded() när datan har hunnit laddas in.
   const checkedState = {};
 
-  // "Gratis"-filtret: när aktivt visas bara gratiskategorierna, alla taxor döljs helt
-  let showOnlyFree = false;
+  // Prisfilter: max-belopp i kr som användaren är villig att betala - ersätter det gamla "Endast gratis"-läget
+  let maxPriceThreshold = null; // sätts till maxbeloppet första gången renderTaxaList körs
+  let priceDetailExpanded = false;
 
   function fitsDuration(item) {
     if (!item.maxMinutes) return true; // ingen maxtid angiven för denna taxa/kategori
@@ -1175,8 +1205,13 @@
   }
 
   function visibleIds() {
+    const hours = getDurationHours();
     const freeIds = FREE_ORDER.map(l => FREE_GROUPS[l]).filter(fitsDuration).map(f => f.id);
-    const taxaIds = showOnlyFree ? [] : TAXA_ORDER.map(c => TAXA_GROUPS[c]).filter(fitsDuration).map(t => t.id);
+    const taxaIds = TAXA_ORDER.map(c => TAXA_GROUPS[c]).filter(taxa => {
+      if (!fitsDuration(taxa)) return false;
+      const cost = computeCost(taxa.costParsed, calcTime, hours);
+      return cost !== null && maxPriceThreshold !== null && cost <= maxPriceThreshold;
+    }).map(t => t.id);
     return [...freeIds, ...taxaIds];
   }
 
@@ -1225,41 +1260,13 @@
       taxaListEl.appendChild(row);
     });
 
-    if (!showOnlyFree) {
-      TAXA_ORDER.forEach(code => {
-        const taxa = TAXA_GROUPS[code];
-        if (!fitsDuration(taxa)) return; // döljs helt om vald tid är längre än taxans maxtid
-        const cost = computeCost(taxa.costParsed, calcTime, hours);
-        const row = document.createElement('div');
-        row.className = 'taxa-row';
-        row.dataset.rowId = taxa.id;
-        row.innerHTML = `
-          <div class="taxa-swatch" style="background:${taxa.color}"></div>
-          <div class="taxa-name">Taxa ${taxa.code}</div>
-          <div class="taxa-price">${cost !== null ? cost + ' kr' : '—'}</div>
-          <div class="info-btn" data-info="${taxa.id}">ⓘ</div>
-          <div class="taxa-checkbox ${checkedState[taxa.id] ? 'on' : ''}" data-id="${taxa.id}">✓</div>
-        `;
-        taxaListEl.appendChild(row);
-      });
-    }
-
     taxaListEl.querySelectorAll('.taxa-checkbox').forEach(t => {
       t.addEventListener('click', () => {
         const id = t.dataset.id;
         const on = t.classList.toggle('on');
         checkedState[id] = on;
         if (on) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
-        updateBulkLabel();
         renderNearestList();
-      });
-    });
-    taxaListEl.querySelectorAll('.info-btn[data-info]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const taxa = TAXA_ORDER.map(c => TAXA_GROUPS[c]).find(t => t.id === btn.dataset.info);
-        if (!taxa) return;
-        toggleInfoPanel(btn.closest('.taxa-row'), taxa.id, taxa.rules || 'Ingen regeltext tillgänglig.');
       });
     });
     taxaListEl.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
@@ -1270,33 +1277,95 @@
         toggleInfoPanel(btn.closest('.taxa-row'), free.id, free.rules);
       });
     });
+
+    renderPriceFilter(hours);
     syncLayersToState();
-    updateBulkLabel();
     renderNearestList();
+  }
+
+  // Räknar ut kostnaden just nu för varje taxa (som klarar maxtidsgränsen), och bygger prisfiltret utifrån det
+  function renderPriceFilter(hours) {
+    const eligible = TAXA_ORDER.map(code => TAXA_GROUPS[code])
+      .filter(fitsDuration)
+      .map(taxa => ({ taxa, cost: computeCost(taxa.costParsed, calcTime, hours) }))
+      .filter(x => x.cost !== null);
+
+    const maxCost = eligible.length > 0 ? Math.max(...eligible.map(x => x.cost)) : 0;
+    const sliderMax = Math.max(5, Math.ceil(maxCost / 5) * 5); // rundar upp till närmaste 5:a, minst 5
+
+    if (maxPriceThreshold === null) {
+      maxPriceThreshold = sliderMax; // första gången: visa allt
+    } else if (maxPriceThreshold > sliderMax) {
+      maxPriceThreshold = sliderMax; // taket har sjunkit (t.ex. kortare tid) - klipp till nya taket
+    }
+
+    const priceSlider = document.getElementById('price-slider');
+    priceSlider.max = sliderMax;
+    priceSlider.value = maxPriceThreshold;
+
+    const included = eligible.filter(x => x.cost <= maxPriceThreshold);
+    const gratisBtn = document.getElementById('price-gratis-btn');
+    gratisBtn.classList.toggle('at-zero', maxPriceThreshold === 0);
+
+    const statusText = document.getElementById('price-status-text');
+    statusText.textContent = `Max ${maxPriceThreshold} kr — ${included.length} av ${eligible.length} taxor visas`;
+
+    const detailList = document.getElementById('price-detail-list');
+    detailList.innerHTML = '';
+    included
+      .sort((a, b) => a.cost - b.cost)
+      .forEach(({ taxa, cost }) => {
+        const row = document.createElement('div');
+        row.className = 'price-detail-row';
+        row.dataset.rowId = taxa.id;
+        row.innerHTML = `
+          <div class="taxa-swatch" style="background:${taxa.color}"></div>
+          <div class="taxa-name">Taxa ${taxa.code}</div>
+          <div class="taxa-price">${cost} kr</div>
+          <div class="info-btn" data-info="${taxa.id}">ⓘ</div>
+        `;
+        detailList.appendChild(row);
+      });
+    detailList.querySelectorAll('.info-btn[data-info]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taxa = TAXA_ORDER.map(c => TAXA_GROUPS[c]).find(t => t.id === btn.dataset.info);
+        if (!taxa) return;
+        toggleInfoPanel(btn.closest('.price-detail-row'), taxa.id, taxa.rules || 'Ingen regeltext tillgänglig.');
+      });
+    });
   }
 
   // Kartlager matchar checked-state, men bara för rader som faktiskt är synliga just nu
   function syncLayersToState() {
     const visible = visibleIds();
-    const allIds = [...FREE_ORDER.map(l => FREE_GROUPS[l].id), ...TAXA_ORDER.map(c => TAXA_GROUPS[c].id)];
-    allIds.forEach(id => {
+    FREE_ORDER.forEach(label => {
+      const id = FREE_GROUPS[label].id;
       const shouldShow = visible.includes(id) && checkedState[id];
-      if (shouldShow) map.addLayer(markerLayers[id]);
-      else map.removeLayer(markerLayers[id]);
+      if (shouldShow) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
+    });
+    TAXA_ORDER.forEach(code => {
+      const id = TAXA_GROUPS[code].id;
+      const shouldShow = visible.includes(id); // taxor styrs helt av pris-/tidsfiltret, ingen egen kryssruta längre
+      if (shouldShow) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
     });
   }
 
-  function updateBulkLabel() {
-    const btn = document.getElementById('bulk-btn');
-    btn.textContent = showOnlyFree ? 'Visa alla' : 'Endast gratis';
-    btn.classList.toggle('active', showOnlyFree);
-  }
 
-  document.getElementById('bulk-btn').addEventListener('click', () => {
-    showOnlyFree = !showOnlyFree;
-    const allIds = [...FREE_ORDER.map(l => FREE_GROUPS[l].id), ...TAXA_ORDER.map(c => TAXA_GROUPS[c].id)];
-    allIds.forEach(id => { checkedState[id] = true; });
+  document.getElementById('price-slider').addEventListener('input', (e) => {
+    maxPriceThreshold = parseInt(e.target.value, 10);
     renderTaxaList();
+    if (refreshOpenDetail) refreshOpenDetail();
+  });
+  document.getElementById('price-gratis-btn').addEventListener('click', () => {
+    maxPriceThreshold = 0;
+    renderTaxaList();
+    if (refreshOpenDetail) refreshOpenDetail();
+  });
+  document.getElementById('price-status-row').addEventListener('click', () => {
+    priceDetailExpanded = !priceDetailExpanded;
+    document.getElementById('price-status-row').classList.toggle('expanded', priceDetailExpanded);
+    document.getElementById('price-detail-list').classList.toggle('expanded', priceDetailExpanded);
   });
 
   document.getElementById('duration-slider').addEventListener('input', () => {
