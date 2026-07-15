@@ -1811,9 +1811,29 @@
       mainLine,
       subLine,
       searchValue: streetPart || r.display_name,
-      postcode,
+      postcode, houseNumber,
       lat: parseFloat(r.lat), lng: parseFloat(r.lon)
     };
+  }
+
+  // Delar upp t.ex. "113B" i { num: 113, letter: 'B' }, så adresser kan sorteras naturligt:
+  // siffror stigande, och bland samma siffra kommer utan bokstav före, sedan bokstavsordning (6, 6A, 6B, 7...)
+  function parseHouseNumber(hn) {
+    if (!hn) return null;
+    const m = String(hn).match(/^(\d+)\s*([A-Za-z]*)$/);
+    if (!m) return { num: Infinity, letter: String(hn) };
+    return { num: parseInt(m[1], 10), letter: m[2].toUpperCase() };
+  }
+  function compareAddressResults(a, b) {
+    const ha = parseHouseNumber(a.houseNumber);
+    const hb = parseHouseNumber(b.houseNumber);
+    if (ha && hb) {
+      if (ha.num !== hb.num) return ha.num - hb.num;
+      return ha.letter.localeCompare(hb.letter, 'sv');
+    }
+    if (ha && !hb) return -1; // numrerade adresser före rena gatunamn utan nummer
+    if (!ha && hb) return 1;
+    return (a.postcode || '').localeCompare(b.postcode || '', 'sv'); // inget nummer att jämföra - sortera på postnummer istället
   }
 
   function allKnownSpots() {
@@ -1965,7 +1985,7 @@
         .then(results => {
           if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
           const addressMatches = results.map(r => formatNominatimResult(r))
-            .sort((a, b) => a.postcode.localeCompare(b.postcode, 'sv'));
+            .sort(compareAddressResults);
           showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
         })
         .catch(() => { /* tyst fel - de lokala förslagen visas ändå */ });
