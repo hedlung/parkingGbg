@@ -1267,12 +1267,31 @@
     });
   }
   function spotKey(groupId, lat, lng) { return groupId + '|' + lat + ',' + lng; }
+  let highlightRequestId = 0;
   function clearHighlight() {
+    highlightRequestId++; // ogiltigförklarar ev. väntande gångvägs-hämtningar
     currentHighlightLayers.forEach(l => map.removeLayer(l));
     currentHighlightLayers = [];
   }
+
+  // Hämtar den riktiga väggeometrin (en lista av [lat,lng]-punkter) mellan två punkter via OSRM:s route-tjänst
+  function fetchOsrmRoute(origin, dest) {
+    const url = `https://router.project-osrm.org/route/v1/foot/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    return fetch(url, { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        if (!data || !data.routes || !data.routes[0]) return null;
+        return data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+      })
+      .catch(() => { clearTimeout(timeoutId); return null; });
+  }
+
   function highlightSpots(items) {
     clearHighlight();
+    const myRequestId = highlightRequestId;
     items.forEach(item => {
       const haloColor = item.type === 'free' ? '#ef4444' : '#39ff14'; // knallgrön för taxor, röd för gratis - så det syns oavsett originalfärg
       const shapes = item.shapes || (item.wkt ? parseWKT(item.wkt) : []);
@@ -1295,7 +1314,7 @@
         item.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
       }
       if (referencePoint) {
-        // Svart/vit "målsnöre": vit linje underst, svart streckad ovanpå så gapen visar vitt
+        // Snabbt: rak svart/vit "målsnöre"-linje direkt, som fallback/placeholder
         const lineWhite = L.polyline(
           [[referencePoint.lat, referencePoint.lng], [item.lat, item.lng]],
           { color: '#ffffff', weight: 4, opacity: 0.9, interactive: false }
@@ -1307,6 +1326,19 @@
         lineWhite.addTo(map);
         lineBlack.addTo(map);
         currentHighlightLayers.push(lineWhite, lineBlack);
+
+        // Byter sedan ut den raka linjen mot den riktiga gångvägen, om OSRM hinner svara
+        fetchOsrmRoute({ lat: referencePoint.lat, lng: referencePoint.lng }, { lat: item.lat, lng: item.lng }).then(coords => {
+          if (myRequestId !== highlightRequestId || !coords) return; // en nyare highlight har tagit över, eller hämtningen misslyckades
+          map.removeLayer(lineWhite);
+          map.removeLayer(lineBlack);
+          currentHighlightLayers = currentHighlightLayers.filter(l => l !== lineWhite && l !== lineBlack);
+          const routeWhite = L.polyline(coords, { color: '#ffffff', weight: 4, opacity: 0.9, interactive: false });
+          const routeBlack = L.polyline(coords, { color: '#000000', weight: 4, opacity: 0.9, dashArray: '10,10', interactive: false });
+          routeWhite.addTo(map);
+          routeBlack.addTo(map);
+          currentHighlightLayers.push(routeWhite, routeBlack);
+        });
       }
     });
   }
