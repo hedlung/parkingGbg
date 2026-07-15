@@ -116,15 +116,17 @@
   #search-suggestions.show { display: block; }
   .suggestion-row {
     display: flex; align-items: center; gap: 10px;
-    padding: 11px 14px; border-bottom: 1px solid #eceef1;
+    padding: 5px 10px 5px 5px; border-bottom: 1px solid #cfc9a8;
     font-size: 13.5px;
   }
   .suggestion-row:last-child { border-bottom: none; }
   .suggestion-row:active { background: rgba(0,0,0,0.08); }
   .suggestion-tag {
+    width: 62px; flex: 0 0 auto; text-align: left;
     font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-    color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 6px; flex: 0 0 auto;
+    color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 6px;
   }
+  .suggestion-tag.tag-parkering { background: #0060a9; color: #ffffff; }
   .suggestion-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
   .suggestion-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
   .suggestion-sub { font-size: 11px; color: #8a94a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1873,7 +1875,7 @@
     const row = document.createElement('div');
     row.className = 'suggestion-row';
     row.innerHTML = `
-      <span class="suggestion-tag">${item.type === 'gata' ? 'Parkering' : 'Adress'}</span>
+      <span class="suggestion-tag${item.type === 'gata' ? ' tag-parkering' : ''}">${item.type === 'gata' ? 'Parkering' : 'Adress'}</span>
       <span class="suggestion-text">
         <span class="suggestion-label">${item.mainLine}</span>
         ${item.subLine ? `<span class="suggestion-sub">${item.subLine}</span>` : ''}
