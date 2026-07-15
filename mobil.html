@@ -368,6 +368,17 @@
     font-size: 11px; color: white; font-weight: 700;
     margin-right: 20px;
   }
+  .taxa-info-panel {
+    max-height: 0; overflow: hidden; opacity: 0;
+    font-size: 12px; color: var(--text-dim); line-height: 1.5;
+    background: var(--panel-2); border-radius: 8px;
+    margin: 0 0 0 0; padding: 0 10px;
+    transition: max-height 0.28s ease, opacity 0.22s ease, padding 0.28s ease, margin 0.28s ease;
+  }
+  .taxa-info-panel.expanded {
+    max-height: 160px; opacity: 1;
+    padding: 9px 10px; margin: 2px 0 6px 0;
+  }
 
   /* Kompakt taxa-lista */
   #taxa-list { display: flex; flex-direction: column; }
@@ -1116,10 +1127,12 @@
   const scrim = document.getElementById('scrim');
   const edgeTab = document.getElementById('edge-tab');
   let panelIsOpen = false;
+  let topZCounter = 800; // delas med detaljkortet - senast öppnade (meny eller popup) hamnar alltid överst
 
   function openPanel() {
     if (panelIsOpen) return;
     panelIsOpen = true;
+    panelWrap.style.zIndex = ++topZCounter;
     panelWrap.classList.add('open');
     scrim.classList.add('show');
     document.getElementById('panel').scrollTop = 0;
@@ -1167,15 +1180,42 @@
     return [...freeIds, ...taxaIds];
   }
 
+  let expandedInfoRowId = null;
+  function toggleInfoPanel(rowEl, rowId, rulesText) {
+    const existingPanel = taxaListEl.querySelector('.taxa-info-panel');
+    const isSameRowAlreadyOpen = expandedInfoRowId === rowId;
+
+    // Fäller ihop en eventuellt redan öppen panel (oavsett vilken rad den tillhör)
+    if (existingPanel) {
+      existingPanel.classList.remove('expanded');
+      setTimeout(() => existingPanel.remove(), 250);
+    }
+    expandedInfoRowId = null;
+
+    if (isSameRowAlreadyOpen) return; // klick på samma info-knapp igen = bara stäng
+
+    // Bygger den nya panelen och fäller ut den, insatt direkt efter raden
+    const panel = document.createElement('div');
+    panel.className = 'taxa-info-panel';
+    panel.textContent = rulesText;
+    rowEl.after(panel);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => panel.classList.add('expanded'));
+    });
+    expandedInfoRowId = rowId;
+  }
+
   function renderTaxaList() {
     const hours = getDurationHours();
     taxaListEl.innerHTML = '';
+    expandedInfoRowId = null;
 
     FREE_ORDER.forEach(label => {
       const free = FREE_GROUPS[label];
       if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
       const row = document.createElement('div');
       row.className = 'taxa-row';
+      row.dataset.rowId = free.id;
       row.innerHTML = `
         <div class="taxa-swatch free-tri" style="border-bottom-color:${free.color}"></div>
         <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
@@ -1192,6 +1232,7 @@
         const cost = computeCost(taxa.costParsed, calcTime, hours);
         const row = document.createElement('div');
         row.className = 'taxa-row';
+        row.dataset.rowId = taxa.id;
         row.innerHTML = `
           <div class="taxa-swatch" style="background:${taxa.color}"></div>
           <div class="taxa-name">Taxa ${taxa.code}</div>
@@ -1218,7 +1259,7 @@
         e.stopPropagation();
         const taxa = TAXA_ORDER.map(c => TAXA_GROUPS[c]).find(t => t.id === btn.dataset.info);
         if (!taxa) return;
-        openDetail({ badge: taxa.name.toUpperCase(), title: 'Regler', addr: taxa.rules || 'Ingen regeltext tillgänglig.', cost: '', dist: '', slots: '', swatchColor: taxa.color, swatchShape: 'circle' });
+        toggleInfoPanel(btn.closest('.taxa-row'), taxa.id, taxa.rules || 'Ingen regeltext tillgänglig.');
       });
     });
     taxaListEl.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
@@ -1226,7 +1267,7 @@
         e.stopPropagation();
         const free = FREE_ORDER.map(l => FREE_GROUPS[l]).find(f => f.id === btn.dataset.infoFree);
         if (!free) return;
-        openDetail({ badge: free.label.toUpperCase(), title: 'Regler', addr: free.rules, cost: '', dist: '', slots: '', swatchColor: free.color, swatchShape: 'triangle' });
+        toggleInfoPanel(btn.closest('.taxa-row'), free.id, free.rules);
       });
     });
     syncLayersToState();
