@@ -116,20 +116,23 @@
   #search-suggestions.show { display: block; }
   .suggestion-row {
     display: flex; align-items: center; gap: 10px;
-    padding: 5px 10px 5px 5px; border-bottom: 1px solid #cfc9a8;
+    padding: 5px 10px; border-bottom: 1px solid #cfc9a8;
     font-size: 13.5px;
+    box-sizing: border-box;
+    min-height: 42px;
   }
   .suggestion-row:last-child { border-bottom: none; }
   .suggestion-row:active { background: rgba(0,0,0,0.08); }
+  .suggestion-tag-col { width: 70px; flex: 0 0 auto; }
   .suggestion-tag {
-    width: 62px; flex: 0 0 auto; text-align: left;
+    display: inline-block; text-align: left; white-space: nowrap;
     font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
-    color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 6px;
+    color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 7px;
   }
   .suggestion-tag.tag-parkering { background: #0060a9; color: #ffffff; }
-  .suggestion-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-  .suggestion-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .suggestion-sub { font-size: 11px; color: #8a94a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggestion-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0px; }
+  .suggestion-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; line-height: 1.3; }
+  .suggestion-sub { font-size: 11px; color: #8a94a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
   #theme-toggle {
     width: 40px; height: 40px; flex: 0 0 auto;
     background: var(--panel-2);
@@ -1875,7 +1878,7 @@
     const row = document.createElement('div');
     row.className = 'suggestion-row';
     row.innerHTML = `
-      <span class="suggestion-tag${item.type === 'gata' ? ' tag-parkering' : ''}">${item.type === 'gata' ? 'Parkering' : 'Adress'}</span>
+      <span class="suggestion-tag-col"><span class="suggestion-tag${item.type === 'gata' ? ' tag-parkering' : ''}">${item.type === 'gata' ? 'Parkering' : 'Adress'}</span></span>
       <span class="suggestion-text">
         <span class="suggestion-label">${item.mainLine}</span>
         ${item.subLine ? `<span class="suggestion-sub">${item.subLine}</span>` : ''}
