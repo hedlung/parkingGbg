@@ -1797,6 +1797,27 @@
   // Alla platsnamn vi känner till lokalt (taxor + gratiskategorier), utan dubbletter
   // Bygger om ett Nominatim-svar till svensk adressordning: "Gata Nummer, postnummer" som huvudrad,
   // och resten (stadsdel m.m.) som en liten underrad.
+  // Bygger om ett Photon-svar (GeoJSON-feature) till samma struktur som formatNominatimResult ger
+  function formatPhotonResult(f) {
+    const p = f.properties || {};
+    const [lng, lat] = f.geometry.coordinates;
+    const street = p.street || p.name || '';
+    const houseNumber = p.housenumber || '';
+    const postcode = p.postcode || '';
+    const streetPart = street + (houseNumber ? ' ' + houseNumber : '');
+    const mainLine = streetPart ? (streetPart + (postcode ? ', ' + postcode : '')) : street;
+    const subParts = [p.district, p.suburb].filter(v => v && v !== street);
+    const subLine = [...new Set(subParts)].join(', ');
+    return {
+      type: 'address',
+      mainLine, subLine,
+      searchValue: streetPart || street,
+      postcode, houseNumber, street,
+      city: p.city || '',
+      lat, lng
+    };
+  }
+
   function formatNominatimResult(r) {
     const a = r.address || {};
     const street = a.road || a.pedestrian || a.footway || a.neighbourhood || '';
@@ -1978,13 +1999,16 @@
       .map(s => ({ type: 'gata', mainLine: s.name, subLine: '', searchValue: s.name, lat: s.lat, lng: s.lng }));
     showSuggestions(lastLocalMatches);
 
-    // Adressförslag mot Nominatim (OpenStreetMap), fördröjt så det inte spammar API:et
+    // Adressförslag mot Photon (byggd för prefix-sökning medan man skriver, till skillnad från Nominatim), fördröjt så det inte spammar API:et
     searchDebounceTimer = setTimeout(() => {
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=57.7089&lon=11.9746&limit=6&layer=street&layer=house`)
         .then(r => r.json())
-        .then(results => {
+        .then(data => {
           if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
-          const addressMatches = results.map(r => formatNominatimResult(r))
+          const q = query.toLowerCase();
+          const addressMatches = (data.features || [])
+            .map(f => formatPhotonResult(f))
+            .filter(item => item.city === 'Göteborg' && item.street.toLowerCase().includes(q))
             .sort(compareAddressResults);
           showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
         })
