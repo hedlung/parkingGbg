@@ -2001,14 +2001,17 @@
 
     // Adressförslag mot Photon (byggd för prefix-sökning medan man skriver, till skillnad från Nominatim), fördröjt så det inte spammar API:et
     searchDebounceTimer = setTimeout(() => {
-      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=57.7089&lon=11.9746&limit=6&layer=street&layer=house`)
+      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lat=57.7089&lon=11.9746&limit=6&layer=street&layer=house&bbox=11.7,57.55,12.2,57.85`)
         .then(r => r.json())
         .then(data => {
           if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
-          const q = query.toLowerCase();
+          // Jämför bara mot gatunamnsdelen av frågan (utan ev. husnummer i slutet), annars matchar
+          // t.ex. "bangatan 6" aldrig mot gatunamnet "bangatan" som ju inte innehåller numret.
+          const queryStreetPart = query.replace(/\s+\d+\w*\s*$/, '').trim().toLowerCase();
+          const q = (queryStreetPart || query).toLowerCase();
           const addressMatches = (data.features || [])
             .map(f => formatPhotonResult(f))
-            .filter(item => item.city === 'Göteborg' && item.street.toLowerCase().includes(q))
+            .filter(item => item.street && item.street.toLowerCase().includes(q))
             .sort(compareAddressResults);
           showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
         })
