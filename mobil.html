@@ -78,6 +78,13 @@
     box-shadow: var(--shadow);
     display: flex; align-items: center; padding: 0 12px;
   }
+  @keyframes searchFlashError {
+    0%, 100% { box-shadow: var(--shadow); border-color: var(--border); }
+    25% { box-shadow: 0 0 0 3px rgba(239,68,68,0.55); border-color: #ef4444; }
+    50% { box-shadow: var(--shadow); border-color: var(--border); }
+    75% { box-shadow: 0 0 0 3px rgba(239,68,68,0.55); border-color: #ef4444; }
+  }
+  #search-wrap.flash-error { animation: searchFlashError 0.6s ease; }
   #search-wrap input {
     flex: 1; border: none; background: transparent; color: var(--text);
     font-size: 16px; padding: 11px 44px 11px 8px; outline: none;
@@ -1253,6 +1260,24 @@
 
   // ---------- Highlight (röd kontur runt vald parkering + fågelvägslinje) ----------
   let currentHighlightLayers = [];
+  let pulseLayers = [];
+  let pulseRafId = null;
+  function stopPulse() {
+    if (pulseRafId) cancelAnimationFrame(pulseRafId);
+    pulseRafId = null;
+    pulseLayers = [];
+  }
+  function startPulse(layers) {
+    pulseLayers = layers;
+    const startTime = performance.now();
+    function step(now) {
+      const t = (now - startTime) / 1000;
+      const opacity = 0.35 + 0.55 * (0.5 + 0.5 * Math.sin(t * 3)); // mjuk puls mellan ~0.35 och 0.9
+      pulseLayers.forEach(l => { if (l.setStyle) l.setStyle({ opacity }); });
+      pulseRafId = requestAnimationFrame(step);
+    }
+    pulseRafId = requestAnimationFrame(step);
+  }
   let selectedSpotKey = null; // identifierar vald rad, så Närmast dig-listan kan visa vilken som är aktiv
   let refreshOpenDetail = null; // funktion som räknar om det ÖPPNA detaljkortet, t.ex. vid ändrad parkeringstid
   let detailDistRequestId = 0;
@@ -1270,6 +1295,7 @@
   let highlightRequestId = 0;
   function clearHighlight() {
     highlightRequestId++; // ogiltigförklarar ev. väntande gångvägs-hämtningar
+    stopPulse();
     currentHighlightLayers.forEach(l => map.removeLayer(l));
     currentHighlightLayers = [];
   }
@@ -1292,6 +1318,7 @@
   function highlightSpots(items) {
     clearHighlight();
     const myRequestId = highlightRequestId;
+    const haloLayers = [];
     items.forEach(item => {
       const haloColor = item.type === 'free' ? '#ef4444' : '#39ff14'; // knallgrön för taxor, röd för gratis - så det syns oavsett originalfärg
       const shapes = item.shapes || (item.wkt ? parseWKT(item.wkt) : []);
@@ -1303,11 +1330,13 @@
             : L.polyline(shape.latlngs, { color: haloColor, weight: 12, opacity: 0.85, interactive: false });
           hl.addTo(map);
           currentHighlightLayers.push(hl);
+          haloLayers.push(hl);
         });
       } else {
         const hl = L.circleMarker([item.lat, item.lng], { radius: 14, color: haloColor, weight: 4, fillOpacity: 0, interactive: false });
         hl.addTo(map);
         currentHighlightLayers.push(hl);
+        haloLayers.push(hl);
       }
       // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå halon
       if (item.leafletLayers) {
@@ -1341,6 +1370,7 @@
         });
       }
     });
+    startPulse(haloLayers);
   }
   function highlightSpot(spot, shapes, type) {
     highlightSpots([{ ...spot, shapes, type }]);
@@ -1814,31 +1844,60 @@
     `;
     row.addEventListener('mousedown', (e) => {
       e.preventDefault(); // hindra att inputen tappar fokus innan klicket hinner registreras
-      suggestionSelected = true;
-      clearTimeout(searchDebounceTimer);
-      searchInput.value = item.label;
-      suggestionsBox.classList.remove('show');
-      if (item.type === 'gata') {
-        setReferencePoint(item.lat, item.lng, item.label);
-        map.setView([item.lat, item.lng], 17);
-      } else {
-        setReferencePoint(item.lat, item.lng, item.label);
-        map.setView([item.lat, item.lng], 16);
-      }
-      searchClear.classList.add('show');
-      setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
-      closeDetailCard();
+      selectSearchItem(item);
     });
     return row;
   }
 
+  // Väljer ett sökresultat (gata eller adress), oavsett om det kom via klick eller Enter-tangenten
+  function selectSearchItem(item) {
+    suggestionSelected = true;
+    clearTimeout(searchDebounceTimer);
+    searchInput.value = item.label;
+    suggestionsBox.classList.remove('show');
+    setReferencePoint(item.lat, item.lng, item.label);
+    map.setView([item.lat, item.lng], item.type === 'gata' ? 17 : 16);
+    searchClear.classList.add('show');
+    setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
+    closeDetailCard();
+  }
+
+  let currentSuggestionItems = [];
   function showSuggestions(items) {
+    currentSuggestionItems = items;
     suggestionsBox.innerHTML = '';
     if (items.length === 0) { suggestionsBox.classList.remove('show'); return; }
     items.forEach(item => suggestionsBox.appendChild(renderSuggestionRow(item)));
     suggestionsBox.classList.add('show');
   }
 
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const query = searchInput.value.trim();
+    if (query.length < 2) return;
+    // Enter söker alltid exakt på det du skrivit - väljer ALDRIG bara första posten i dropdownen
+    clearTimeout(searchDebounceTimer);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+      .then(r => r.json())
+      .then(results => {
+        if (results && results[0]) {
+          selectSearchItem({
+            type: 'address', label: results[0].display_name,
+            lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon)
+          });
+        } else {
+          flashSearchError(); // ingen träff - för ospecifikt, be användaren fylla på eller välja i listan
+        }
+      })
+      .catch(() => { flashSearchError(); });
+  });
+  function flashSearchError() {
+    const wrap = document.getElementById('search-wrap');
+    wrap.classList.remove('flash-error');
+    void wrap.offsetWidth; // tvingar en reflow så animationen kan köras igen även om den redan visats nyss
+    wrap.classList.add('flash-error');
+  }
   searchInput.addEventListener('input', () => {
     const query = searchInput.value.trim();
     searchClear.classList.toggle('show', query.length > 0);
