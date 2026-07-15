@@ -77,12 +77,14 @@
     border-radius: 13px;
     box-shadow: var(--shadow);
     display: flex; align-items: center; padding: 0 12px;
+    transition: border-radius 0s;
   }
+  #search-wrap.suggestions-open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
   @keyframes searchFlashError {
-    0%, 100% { box-shadow: var(--shadow); border-color: var(--border); }
-    25% { box-shadow: 0 0 0 3px rgba(239,68,68,0.55); border-color: #ef4444; }
-    50% { box-shadow: var(--shadow); border-color: var(--border); }
-    75% { box-shadow: 0 0 0 3px rgba(239,68,68,0.55); border-color: #ef4444; }
+    0%, 100% { background: var(--panel); }
+    25% { background: #ef4444; }
+    50% { background: var(--panel); }
+    75% { background: #ef4444; }
   }
   #search-wrap.flash-error { animation: searchFlashError 0.6s ease; }
   #search-wrap input {
@@ -105,9 +107,10 @@
   body.light-theme #search-clear { background: #ffffff; color: #000000; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
 
   #search-suggestions {
-    position: absolute; top: 62px; left: 68px; right: 62px; z-index: 610;
+    position: absolute; top: 100%; left: -1px; right: -1px; z-index: 610;
     background: #fff8dc; color: #14171a;
-    border-radius: 13px; box-shadow: var(--shadow);
+    border: 1px solid var(--border); border-top: none;
+    border-radius: 0 0 13px 13px; box-shadow: var(--shadow);
     max-height: 55vh; overflow-y: auto; display: none;
   }
   #search-suggestions.show { display: block; }
@@ -122,7 +125,9 @@
     font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
     color: #8a94a3; background: #eef0f3; border-radius: 5px; padding: 3px 6px; flex: 0 0 auto;
   }
-  .suggestion-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggestion-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .suggestion-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .suggestion-sub { font-size: 11px; color: #8a94a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #theme-toggle {
     width: 40px; height: 40px; flex: 0 0 auto;
     background: var(--panel-2);
@@ -511,6 +516,7 @@
       <span style="color:var(--text-dim); font-size: 42px; line-height: 1; flex: 0 0 auto;">⌕</span>
       <input id="search-input" placeholder="Sök adress, gata eller taxa" autocomplete="off">
       <div id="search-clear">✕</div>
+      <div id="search-suggestions"></div>
     </div>
     <div id="locate-btn">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
@@ -522,7 +528,6 @@
       </svg>
     </div>
   </div>
-  <div id="search-suggestions"></div>
 
   <div id="panel-wrap">
     <div id="edge-tab">
@@ -1769,13 +1774,42 @@
   // ---------- Sökfunktion: lokala parkeringsnamn + Nominatim-adresser ----------
   const searchInput = document.getElementById('search-input');
   const searchClear = document.getElementById('search-clear');
+  const searchWrap = document.getElementById('search-wrap');
   const suggestionsBox = document.getElementById('search-suggestions');
+  function openSuggestionsBox() {
+    suggestionsBox.classList.add('show');
+    searchWrap.classList.add('suggestions-open');
+  }
+  function closeSuggestionsBox() {
+    suggestionsBox.classList.remove('show');
+    searchWrap.classList.remove('suggestions-open');
+  }
   let searchDebounceTimer = null;
   let lastLocalMatches = [];
   let suggestionSelected = false; // sant om användaren redan valt ett förslag - då ska inga försenade svar dyka upp igen
   let referenceMarker = null;
 
   // Alla platsnamn vi känner till lokalt (taxor + gratiskategorier), utan dubbletter
+  // Bygger om ett Nominatim-svar till svensk adressordning: "Gata Nummer, postnummer" som huvudrad,
+  // och resten (stadsdel m.m.) som en liten underrad.
+  function formatNominatimResult(r) {
+    const a = r.address || {};
+    const street = a.road || a.pedestrian || a.footway || a.neighbourhood || '';
+    const houseNumber = a.house_number || '';
+    const postcode = a.postcode || '';
+    const streetPart = street + (houseNumber ? ' ' + houseNumber : '');
+    const mainLine = streetPart ? (streetPart + (postcode ? ', ' + postcode : '')) : r.display_name;
+    const subParts = [a.suburb, a.city_district, a.neighbourhood].filter(v => v && v !== street);
+    const subLine = [...new Set(subParts)].join(', ');
+    return {
+      type: 'address',
+      mainLine,
+      subLine,
+      searchValue: streetPart || r.display_name,
+      lat: parseFloat(r.lat), lng: parseFloat(r.lon)
+    };
+  }
+
   function allKnownSpots() {
     const spots = [];
     TAXA_ORDER.forEach(code => TAXA_GROUPS[code].spots.forEach(s => spots.push({ name: s.title, lat: s.lat, lng: s.lng })));
@@ -1839,8 +1873,11 @@
     const row = document.createElement('div');
     row.className = 'suggestion-row';
     row.innerHTML = `
-      <span class="suggestion-tag">${item.type === 'gata' ? 'Gata' : 'Adress'}</span>
-      <span class="suggestion-label">${item.label}</span>
+      <span class="suggestion-tag">${item.type === 'gata' ? 'Parkering' : 'Adress'}</span>
+      <span class="suggestion-text">
+        <span class="suggestion-label">${item.mainLine}</span>
+        ${item.subLine ? `<span class="suggestion-sub">${item.subLine}</span>` : ''}
+      </span>
     `;
     row.addEventListener('mousedown', (e) => {
       e.preventDefault(); // hindra att inputen tappar fokus innan klicket hinner registreras
@@ -1853,9 +1890,9 @@
   function selectSearchItem(item) {
     suggestionSelected = true;
     clearTimeout(searchDebounceTimer);
-    searchInput.value = item.label;
-    suggestionsBox.classList.remove('show');
-    setReferencePoint(item.lat, item.lng, item.label);
+    searchInput.value = item.searchValue;
+    closeSuggestionsBox();
+    setReferencePoint(item.lat, item.lng, item.searchValue);
     map.setView([item.lat, item.lng], item.type === 'gata' ? 17 : 16);
     searchClear.classList.add('show');
     setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
@@ -1866,9 +1903,9 @@
   function showSuggestions(items) {
     currentSuggestionItems = items;
     suggestionsBox.innerHTML = '';
-    if (items.length === 0) { suggestionsBox.classList.remove('show'); return; }
+    if (items.length === 0) { closeSuggestionsBox(); return; }
     items.forEach(item => suggestionsBox.appendChild(renderSuggestionRow(item)));
-    suggestionsBox.classList.add('show');
+    openSuggestionsBox();
   }
 
   searchInput.addEventListener('keydown', (e) => {
@@ -1878,14 +1915,11 @@
     if (query.length < 2) return;
     // Enter söker alltid exakt på det du skrivit - väljer ALDRIG bara första posten i dropdownen
     clearTimeout(searchDebounceTimer);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
       .then(r => r.json())
       .then(results => {
         if (results && results[0]) {
-          selectSearchItem({
-            type: 'address', label: results[0].display_name,
-            lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon)
-          });
+          selectSearchItem(formatNominatimResult(results[0]));
         } else {
           flashSearchError(); // ingen träff - för ospecifikt, be användaren fylla på eller välja i listan
         }
@@ -1904,7 +1938,7 @@
     clearTimeout(searchDebounceTimer);
     suggestionSelected = false;
     if (query.length < 2) {
-      suggestionsBox.classList.remove('show');
+      closeSuggestionsBox();
       return;
     }
 
@@ -1912,18 +1946,16 @@
     lastLocalMatches = allKnownSpots()
       .filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
       .slice(0, 5)
-      .map(s => ({ type: 'gata', label: s.name, lat: s.lat, lng: s.lng }));
+      .map(s => ({ type: 'gata', mainLine: s.name, subLine: '', searchValue: s.name, lat: s.lat, lng: s.lng }));
     showSuggestions(lastLocalMatches);
 
     // Adressförslag mot Nominatim (OpenStreetMap), fördröjt så det inte spammar API:et
     searchDebounceTimer = setTimeout(() => {
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
         .then(r => r.json())
         .then(results => {
           if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
-          const addressMatches = results.map(r => ({
-            type: 'address', label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon)
-          }));
+          const addressMatches = results.map(r => formatNominatimResult(r));
           showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
         })
         .catch(() => { /* tyst fel - de lokala förslagen visas ändå */ });
@@ -1951,13 +1983,13 @@
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.classList.remove('show');
-    suggestionsBox.classList.remove('show');
+    closeSuggestionsBox();
     searchInput.focus();
   });
 
   document.addEventListener('click', (e) => {
     if (e.target !== searchInput && !suggestionsBox.contains(e.target)) {
-      suggestionsBox.classList.remove('show');
+      closeSuggestionsBox();
     }
   });
 
