@@ -1811,6 +1811,7 @@
       mainLine,
       subLine,
       searchValue: streetPart || r.display_name,
+      postcode,
       lat: parseFloat(r.lat), lng: parseFloat(r.lon)
     };
   }
@@ -1923,10 +1924,13 @@
     fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=se&q=${encodeURIComponent(query + ', Göteborg')}`)
       .then(r => r.json())
       .then(results => {
-        if (results && results[0]) {
-          selectSearchItem(formatNominatimResult(results[0]));
+        const result = results && results[0] ? formatNominatimResult(results[0]) : null;
+        // Kräver exakt matchning mot det inskrivna (t.ex. "Bangatan 6" ska INTE tyst accepteras som "Bangatan 6A")
+        const norm = s => s.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (result && norm(result.searchValue) === norm(query)) {
+          selectSearchItem(result);
         } else {
-          flashSearchError(); // ingen träff - för ospecifikt, be användaren fylla på eller välja i listan
+          flashSearchError(); // ingen exakt träff - för ospecifikt, be användaren fylla på eller välja i listan
         }
       })
       .catch(() => { flashSearchError(); });
@@ -1960,7 +1964,8 @@
         .then(r => r.json())
         .then(results => {
           if (suggestionSelected) return; // användaren hann redan välja något - visa inte gamla resultat igen
-          const addressMatches = results.map(r => formatNominatimResult(r));
+          const addressMatches = results.map(r => formatNominatimResult(r))
+            .sort((a, b) => a.postcode.localeCompare(b.postcode, 'sv'));
           showSuggestions([...lastLocalMatches, ...addressMatches].slice(0, 8));
         })
         .catch(() => { /* tyst fel - de lokala förslagen visas ändå */ });
