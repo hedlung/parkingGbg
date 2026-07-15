@@ -329,21 +329,24 @@
   }
   #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; }
 
-  #price-filter-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-  #price-slider { flex: 1; accent-color: var(--accent); height: 20px; }
+  #price-filter-row { margin-top: 4px; }
+  #price-slider { width: 100%; accent-color: var(--accent); height: 20px; }
+  #price-endpoints-row { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
   #price-gratis-btn.at-zero { opacity: 0.4; }
   #price-status-row {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 6px; padding: 4px 2px; font-size: 12px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 8px; padding: 4px 2px; font-size: 12px; color: var(--text-dim);
     cursor: pointer;
   }
-  #price-expand-arrow { font-size: 15px; transition: transform 0.2s ease; color: var(--text-dim); }
-  #price-status-row.expanded #price-expand-arrow { transform: rotate(90deg); }
-  #price-detail-list {
+  #price-status-row #price-status-text { flex: 1; }
+  #price-expand-arrow, #gratis-expand-arrow { font-size: 15px; transition: transform 0.2s ease; color: var(--text-dim); }
+  #price-status-row.expanded #price-expand-arrow,
+  #gratis-section-header.expanded #gratis-expand-arrow { transform: rotate(90deg); }
+  #price-detail-list, #gratis-detail-list {
     max-height: 0; overflow: hidden; opacity: 0;
     transition: max-height 0.28s ease, opacity 0.22s ease;
   }
-  #price-detail-list.expanded { max-height: 400px; opacity: 1; }
+  #price-detail-list.expanded, #gratis-detail-list.expanded { max-height: 400px; opacity: 1; }
   .price-detail-row {
     display: flex; align-items: center; gap: 8px; padding: 6px 2px;
     border-bottom: 1px solid var(--border); font-size: 12.5px;
@@ -402,7 +405,6 @@
   }
 
   /* Kompakt taxa-lista */
-  #taxa-list { display: flex; flex-direction: column; }
   .taxa-row {
     display: flex; align-items: center; gap: 8px;
     padding: 6px 0;
@@ -591,19 +593,29 @@
         </div>
       </div>
 
-      <div class="section-label">Parkeringar</div>
-
+      <div class="section-label" style="display:flex; align-items:center; justify-content:space-between">
+        <span>Kostnad</span>
+        <span class="val" id="price-current-val" style="text-transform:none; letter-spacing:0; font-size:26px; color:var(--text)">35 kr</span>
+      </div>
       <div id="price-filter-row">
         <input type="range" id="price-slider" min="0" max="35" step="1" value="35">
-        <button id="price-gratis-btn" class="mini-btn">Gratis</button>
+      </div>
+      <div id="price-endpoints-row">
+        <span id="price-min-label" class="taxa-name">Gratis</span>
+        <span id="price-max-label" class="taxa-name">35 kr</span>
       </div>
       <div id="price-status-row">
-        <span id="price-status-text">Max 35 kr — 8 av 8 taxor visas</span>
+        <button id="price-gratis-btn" class="mini-btn">Gratis</button>
+        <span id="price-status-text">8 av 8 taxor visas</span>
         <span id="price-expand-arrow">›</span>
       </div>
       <div id="price-detail-list"><!-- fylls av JS: read-only lista över taxor inom budget --></div>
 
-      <div id="taxa-list"><!-- fylls av JS, bara gratis-kategorier nu --></div>
+      <div class="section-label" id="gratis-section-header" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
+        <span>Gratis</span>
+        <span id="gratis-expand-arrow">›</span>
+      </div>
+      <div id="gratis-detail-list"><!-- fylls av JS: read-only lista över gratiskategorier --></div>
 
       <div id="theme-row">
         <div id="loaded-count">2 598 parkeringar laddade</div>
@@ -1178,7 +1190,6 @@
   scrim.addEventListener('click', closePanel);
 
   // ---------- Kombinerad lista: gratis överst, sedan taxor ----------
-  const taxaListEl = document.getElementById('taxa-list');
 
   // Ojämna tidssteg, exakt som webbversionen: kvart upp till 1 tim, halvtimme upp till 6 tim, sedan 2-timmarshopp
   const DURATION_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 12];
@@ -1217,7 +1228,7 @@
 
   let expandedInfoRowId = null;
   function toggleInfoPanel(rowEl, rowId, rulesText) {
-    const existingPanel = taxaListEl.querySelector('.taxa-info-panel');
+    const existingPanel = document.querySelector('.taxa-info-panel');
     const isSameRowAlreadyOpen = expandedInfoRowId === rowId;
 
     // Fäller ihop en eventuellt redan öppen panel (oavsett vilken rad den tillhör)
@@ -1242,45 +1253,39 @@
 
   function renderTaxaList() {
     const hours = getDurationHours();
-    taxaListEl.innerHTML = '';
     expandedInfoRowId = null;
 
+    renderGratisSection();
+    renderPriceFilter(hours);
+    syncLayersToState();
+    renderNearestList();
+  }
+
+  // Gratis-kategorierna: en egen kollapsbar, read-only lista (ingen kryssruta längre)
+  function renderGratisSection() {
+    const gratisList = document.getElementById('gratis-detail-list');
+    gratisList.innerHTML = '';
     FREE_ORDER.forEach(label => {
       const free = FREE_GROUPS[label];
       if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
       const row = document.createElement('div');
-      row.className = 'taxa-row';
+      row.className = 'price-detail-row';
       row.dataset.rowId = free.id;
       row.innerHTML = `
         <div class="taxa-swatch free-tri" style="border-bottom-color:${free.color}"></div>
         <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
         <div class="info-btn" data-info-free="${free.id}">ⓘ</div>
-        <div class="taxa-checkbox ${checkedState[free.id] ? 'on' : ''}" data-id="${free.id}">✓</div>
       `;
-      taxaListEl.appendChild(row);
+      gratisList.appendChild(row);
     });
-
-    taxaListEl.querySelectorAll('.taxa-checkbox').forEach(t => {
-      t.addEventListener('click', () => {
-        const id = t.dataset.id;
-        const on = t.classList.toggle('on');
-        checkedState[id] = on;
-        if (on) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
-        renderNearestList();
-      });
-    });
-    taxaListEl.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
+    gratisList.querySelectorAll('.info-btn[data-info-free]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const free = FREE_ORDER.map(l => FREE_GROUPS[l]).find(f => f.id === btn.dataset.infoFree);
         if (!free) return;
-        toggleInfoPanel(btn.closest('.taxa-row'), free.id, free.rules);
+        toggleInfoPanel(btn.closest('.price-detail-row'), free.id, free.rules);
       });
     });
-
-    renderPriceFilter(hours);
-    syncLayersToState();
-    renderNearestList();
   }
 
   // Räknar ut kostnaden just nu för varje taxa (som klarar maxtidsgränsen), och bygger prisfiltret utifrån det
@@ -1303,12 +1308,15 @@
     priceSlider.max = sliderMax;
     priceSlider.value = maxPriceThreshold;
 
+    document.getElementById('price-current-val').textContent = maxPriceThreshold === 0 ? 'Gratis' : maxPriceThreshold + ' kr';
+    document.getElementById('price-max-label').textContent = sliderMax + ' kr';
+
     const included = eligible.filter(x => x.cost <= maxPriceThreshold);
     const gratisBtn = document.getElementById('price-gratis-btn');
     gratisBtn.classList.toggle('at-zero', maxPriceThreshold === 0);
 
     const statusText = document.getElementById('price-status-text');
-    statusText.textContent = `Max ${maxPriceThreshold} kr — ${included.length} av ${eligible.length} taxor visas`;
+    statusText.textContent = `${included.length} av ${eligible.length} taxor visas`;
 
     const detailList = document.getElementById('price-detail-list');
     detailList.innerHTML = '';
@@ -1341,7 +1349,7 @@
     const visible = visibleIds();
     FREE_ORDER.forEach(label => {
       const id = FREE_GROUPS[label].id;
-      const shouldShow = visible.includes(id) && checkedState[id];
+      const shouldShow = visible.includes(id); // gratis styrs nu bara av maxtidsfiltret, ingen egen kryssruta längre
       if (shouldShow) map.addLayer(markerLayers[id]); else map.removeLayer(markerLayers[id]);
     });
     TAXA_ORDER.forEach(code => {
@@ -1366,6 +1374,12 @@
     priceDetailExpanded = !priceDetailExpanded;
     document.getElementById('price-status-row').classList.toggle('expanded', priceDetailExpanded);
     document.getElementById('price-detail-list').classList.toggle('expanded', priceDetailExpanded);
+  });
+  let gratisDetailExpanded = false;
+  document.getElementById('gratis-section-header').addEventListener('click', () => {
+    gratisDetailExpanded = !gratisDetailExpanded;
+    document.getElementById('gratis-section-header').classList.toggle('expanded', gratisDetailExpanded);
+    document.getElementById('gratis-detail-list').classList.toggle('expanded', gratisDetailExpanded);
   });
 
   document.getElementById('duration-slider').addEventListener('input', () => {
