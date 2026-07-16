@@ -327,10 +327,35 @@
   #duration-row {
     padding: 6px 0 10px 0;
   }
-  #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; }
+  #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
+  #duration-slider::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill-pct, 0%), var(--border) var(--fill-pct, 0%), var(--border) 100%);
+  }
+  #duration-slider::-moz-range-track { height: 6px; border-radius: 999px; background: var(--border); }
+  #duration-slider::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
 
   #price-filter-row { margin-top: 4px; }
-  #price-slider { width: 100%; accent-color: var(--accent); height: 20px; }
+  #price-slider { width: 100%; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
+  #price-slider::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 999px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill-pct, 0%), var(--border) var(--fill-pct, 0%), var(--border) 100%);
+  }
+  #price-slider::-moz-range-track { height: 6px; border-radius: 999px; background: var(--border); }
+  #price-slider::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+  #price-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+  #price-slider::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
   #price-endpoints-row { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
   #price-gratis-btn.at-zero { opacity: 0.4; }
   #price-gratis-row { margin-top: 8px; }
@@ -1189,6 +1214,16 @@
   // Ojämna tidssteg, exakt som webbversionen: kvart upp till 1 tim, halvtimme upp till 6 tim, sedan 2-timmarshopp
   const DURATION_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 8, 10, 12];
 
+  // Sätter en CSS custom property med aktuell fyllnadsprocent - behövs för att rita det blå fyllda spåret
+  // i Safari/webkit, eftersom appearance:none tar bort webbläsarens inbyggda spårfärgning helt.
+  function updateSliderFill(slider) {
+    const min = parseFloat(slider.min) || 0;
+    const max = parseFloat(slider.max) || 100;
+    const val = parseFloat(slider.value);
+    const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+    slider.style.setProperty('--fill-pct', pct + '%');
+  }
+
   function formatHours(h) {
     if (h < 1) return Math.round(h * 60) + ' min';
     const wholePart = Math.floor(h);
@@ -1275,6 +1310,7 @@
     const priceSlider = document.getElementById('price-slider');
     priceSlider.max = sliderMax;
     priceSlider.value = maxPriceThreshold;
+    updateSliderFill(priceSlider);
 
     document.getElementById('price-current-val').textContent = maxPriceThreshold === 0 ? 'Gratis' : maxPriceThreshold + ' kr';
     document.getElementById('price-max-label').textContent = sliderMax + ' kr';
@@ -1370,12 +1406,14 @@
     document.getElementById('mer-info-detail-list').classList.toggle('expanded', merInfoExpanded);
   });
 
-  document.getElementById('duration-slider').addEventListener('input', () => {
+  document.getElementById('duration-slider').addEventListener('input', (e) => {
     document.getElementById('duration-val').textContent = formatHours(getDurationHours());
+    updateSliderFill(e.target);
     renderTaxaList();
     if (refreshOpenDetail) refreshOpenDetail();
   });
   document.getElementById('duration-val').textContent = formatHours(getDurationHours());
+  updateSliderFill(document.getElementById('duration-slider'));
 
   // ---------- Närmast dig ----------
   let referencePoint = null; // { lat, lng } - sätts av "Hitta mig" eller sökt adress/gata
