@@ -290,7 +290,10 @@
   body.light-theme #nearest-list { scrollbar-color: rgba(0,0,0,0.4) transparent; }
   body.light-theme #nearest-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); }
   #nearest-placeholder { font-size: 12px; color: var(--text-dim); line-height: 1.4; margin: 4px 0 8px 0; }
-  #nearest-distance-note { font-size: 10.5px; color: var(--text-dim); margin: 2px 0 6px 0; font-style: italic; min-height: 14px; text-align: right; }
+  #nearest-distance-note {
+    font-size: 10.5px; color: var(--text-dim); font-style: italic;
+    text-transform: none; letter-spacing: 0; font-weight: 400;
+  }
   .nearest-row {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 0 7px 8px; border-bottom: 1px solid var(--border);
@@ -322,8 +325,8 @@
     margin: 14px 0 6px 0;
   }
   .section-label:first-child { margin-top: 12px; }
-  #calc-time-inline { text-transform: none; letter-spacing: 0; font-weight: 400; }
-  #calc-time-inline b { color: var(--text-dim); font-weight: 700; }
+  #calc-time-inline { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+  #calc-time-inline b { color: var(--text); font-weight: 700; }
 
   /* Slider + värde i samma rad - kortare slider, värdet garanterat centrerat i höjd mot slidern */
   .slider-row { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
@@ -604,13 +607,15 @@
         <span id="price-max-label" class="taxa-name">35 kr</span>
       </div>
 
-      <div class="section-label">Närmast dig</div>
+      <div class="section-label" style="display:flex; align-items:baseline; justify-content:space-between;">
+        <span>Närmast dig</span>
+        <span id="nearest-distance-note"></span>
+      </div>
       <div id="nearest-list-wrap">
         <div id="nearest-list">
           <p id="nearest-placeholder">Tryck "Hitta mig" eller sök en plats ovan för att se de närmaste parkeringarna, sorterade efter avstånd.</p>
         </div>
       </div>
-      <p id="nearest-distance-note"></p>
 
       <div class="section-label" id="mer-info-header" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
         <span>Mer Info</span>
@@ -1293,6 +1298,10 @@
     priceSlider.max = sliderMax;
     priceSlider.value = maxPriceThreshold;
     updateSliderFill(priceSlider);
+    // Mäter sliderns faktiska renderade bredd och tvingar endpoints-raden att matcha exakt
+    requestAnimationFrame(() => {
+      document.getElementById('price-endpoints-row').style.width = priceSlider.offsetWidth + 'px';
+    });
 
     document.getElementById('price-current-val').textContent = maxPriceThreshold === 0 ? 'Gratis' : maxPriceThreshold + ' kr';
     document.getElementById('price-max-label').textContent = sliderMax + ' kr';
@@ -1305,6 +1314,20 @@
   function renderMerInfoList(hours) {
     const detailList = document.getElementById('mer-info-detail-list');
     detailList.innerHTML = '';
+
+    FREE_ORDER.forEach(label => {
+      const free = FREE_GROUPS[label];
+      if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
+      const row = document.createElement('div');
+      row.className = 'price-detail-row';
+      row.dataset.rowId = free.id;
+      row.innerHTML = `
+        <div class="taxa-swatch free-tri" style="border-bottom-color:${free.color}"></div>
+        <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
+        <div class="info-btn" data-info-free="${free.id}">ⓘ</div>
+      `;
+      detailList.appendChild(row);
+    });
 
     TAXA_ORDER.map(code => TAXA_GROUPS[code])
       .filter(fitsDuration)
@@ -1323,20 +1346,6 @@
         `;
         detailList.appendChild(row);
       });
-
-    FREE_ORDER.forEach(label => {
-      const free = FREE_GROUPS[label];
-      if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
-      const row = document.createElement('div');
-      row.className = 'price-detail-row';
-      row.dataset.rowId = free.id;
-      row.innerHTML = `
-        <div class="taxa-swatch free-tri" style="border-bottom-color:${free.color}"></div>
-        <div class="taxa-name" style="width:auto;flex:1">${free.label}</div>
-        <div class="info-btn" data-info-free="${free.id}">ⓘ</div>
-      `;
-      detailList.appendChild(row);
-    });
 
     detailList.querySelectorAll('.info-btn[data-info]').forEach(btn => {
       btn.addEventListener('click', (e) => {
