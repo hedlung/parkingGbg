@@ -90,9 +90,9 @@
   #search-wrap input {
     flex: 1; border: none; background: transparent; color: var(--text);
     font-size: 16px; padding: 11px 44px 11px 8px; outline: none;
-    caret-color: #ffffff;
+    caret-color: var(--text);
   }
-  #search-wrap input:focus { caret-color: #ffffff; }
+  #search-wrap input:focus { caret-color: var(--text); }
   #search-wrap input::placeholder { color: var(--text-dim); }
   /* Placerad absolut så den kan vara större än fältet (och "titta ut" ovanför/under) utan att
      påverka layouten eller trycka undan Hitta mig-knappen. Svart/vit beroende på tema. */
@@ -290,7 +290,7 @@
   body.light-theme #nearest-list { scrollbar-color: rgba(0,0,0,0.4) transparent; }
   body.light-theme #nearest-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); }
   #nearest-placeholder { font-size: 12px; color: var(--text-dim); line-height: 1.4; margin: 4px 0 8px 0; }
-  #nearest-distance-note { font-size: 10.5px; color: var(--text-dim); margin: 2px 0 6px 0; font-style: italic; }
+  #nearest-distance-note { font-size: 10.5px; color: var(--text-dim); margin: 2px 0 6px 0; font-style: italic; min-height: 14px; }
   .nearest-row {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 0 7px 8px; border-bottom: 1px solid var(--border);
@@ -322,12 +322,14 @@
     margin: 14px 0 6px 0;
   }
   .section-label:first-child { margin-top: 12px; }
+  #calc-time-inline { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  #calc-time-inline b { color: var(--text-dim); font-weight: 700; }
 
-  /* Slider för parkeringstid - kompakt en-rads variant */
-  #duration-row {
-    padding: 6px 0 10px 0;
-  }
-  #duration-slider { width: 100%; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
+  /* Slider + värde i samma rad - kortare slider, värdet garanterat centrerat i höjd mot slidern */
+  .slider-row { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+  .slider-val { font-size: 22px; font-weight: 700; color: var(--text); flex: 0 0 auto; white-space: nowrap; }
+
+  #duration-slider { flex: 1; max-width: 220px; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
   #duration-slider::-webkit-slider-runnable-track {
     height: 6px; border-radius: 999px;
     background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill-pct, 0%), var(--border) var(--fill-pct, 0%), var(--border) 100%);
@@ -335,8 +337,7 @@
   #duration-slider::-moz-range-track { height: 6px; border-radius: 999px; background: var(--border); }
   #duration-slider::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
 
-  #price-filter-row { margin-top: 4px; }
-  #price-slider { width: 100%; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
+  #price-slider { flex: 1; max-width: 220px; accent-color: var(--accent); height: 20px; -webkit-appearance: none; appearance: none; background: transparent; }
   #price-slider::-webkit-slider-runnable-track {
     height: 6px; border-radius: 999px;
     background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--fill-pct, 0%), var(--border) var(--fill-pct, 0%), var(--border) 100%);
@@ -349,6 +350,7 @@
     background: var(--accent); border: 2px solid white;
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     cursor: pointer;
+    margin-top: -8px;
   }
   #price-slider::-moz-range-thumb {
     width: 22px; height: 22px; border-radius: 50%;
@@ -356,9 +358,8 @@
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     cursor: pointer;
   }
-  #price-endpoints-row { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  #price-endpoints-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; max-width: 220px; }
   #price-gratis-btn.at-zero { opacity: 0.4; }
-  #price-gratis-row { margin-top: 8px; }
   #mer-info-header {
     margin-top: 10px; padding: 6px 2px; cursor: pointer;
   }
@@ -377,28 +378,16 @@
   #duration-slider::-webkit-slider-thumb {
     -webkit-appearance: none; appearance: none;
     width: 22px; height: 22px; border-radius: 50%;
-    background: #ffffff; border: 2px solid var(--accent);
+    background: var(--accent); border: 2px solid white;
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     cursor: pointer;
+    margin-top: -8px;
   }
   #duration-slider::-moz-range-thumb {
     width: 22px; height: 22px; border-radius: 50%;
-    background: #ffffff; border: 2px solid var(--accent);
+    background: var(--accent); border: 2px solid white;
     box-shadow: 0 1px 3px rgba(0,0,0,0.4);
     cursor: pointer;
-  }
-  body.light-theme #duration-slider::-webkit-slider-thumb { background: #000000 !important; }
-  body.light-theme #duration-slider::-moz-range-thumb { background: #000000 !important; }
-
-  #calc-row {
-    display: flex; align-items: center; justify-content: space-between;
-    font-size: 11.5px; color: var(--text-dim);
-    margin-top: 2px; margin-bottom: 4px;
-  }
-  #calc-row b { color: var(--text); font-weight: 700; }
-  #calc-now-btn {
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
-    font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 8px;
   }
 
   .mini-btn {
@@ -596,16 +585,22 @@
       <span class="tab-icon icon-close">‹</span>
     </div>
     <div id="panel">
-      <div class="section-label" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between">
-        <span>Parkeringstid</span>
-        <span class="val" id="duration-val" style="text-transform:none; letter-spacing:0; font-size:26px; color:var(--text)">2 tim</span>
+      <div class="section-label" style="margin-top:12px;">
+        Parkeringstid <span id="calc-time-inline">(från kl <b id="calc-time">20:07</b>)</span>
       </div>
-      <div id="duration-row">
+      <div class="slider-row">
         <input type="range" id="duration-slider" min="0" max="16" step="1" value="3">
+        <span class="slider-val" id="duration-val">2 tim</span>
       </div>
-      <div id="calc-row">
-        <span>Beräknat från kl. <b id="calc-time">20:07</b></span>
-        <button id="calc-now-btn">↻ Nu</button>
+
+      <div class="section-label">Kostnad</div>
+      <div class="slider-row">
+        <input type="range" id="price-slider" min="0" max="35" step="1" value="35">
+        <span class="slider-val" id="price-current-val">35 kr</span>
+      </div>
+      <div id="price-endpoints-row">
+        <button id="price-gratis-btn" class="mini-btn">0 kr</button>
+        <span id="price-max-label" class="taxa-name">35 kr</span>
       </div>
 
       <div class="section-label">Närmast dig</div>
@@ -615,21 +610,6 @@
         </div>
       </div>
       <p id="nearest-distance-note"></p>
-
-      <div class="section-label" style="display:flex; align-items:center; justify-content:space-between">
-        <span>Kostnad</span>
-        <span class="val" id="price-current-val" style="text-transform:none; letter-spacing:0; font-size:26px; color:var(--text)">35 kr</span>
-      </div>
-      <div id="price-filter-row">
-        <input type="range" id="price-slider" min="0" max="35" step="1" value="35">
-      </div>
-      <div id="price-endpoints-row">
-        <span id="price-min-label" class="taxa-name">Gratis</span>
-        <span id="price-max-label" class="taxa-name">35 kr</span>
-      </div>
-      <div id="price-gratis-row">
-        <button id="price-gratis-btn" class="mini-btn">Gratis</button>
-      </div>
 
       <div class="section-label" id="mer-info-header" style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;">
         <span>Mer Info</span>
@@ -799,6 +779,7 @@
   function checkIfWokenUp() {
     if (document.visibilityState === 'visible') {
       checkRealConnectivity();
+      refreshCalcTime(); // räknar om priser/tid direkt när appen väcks, inte bara på minutern
     }
   }
   document.addEventListener('visibilitychange', checkIfWokenUp);
@@ -1731,9 +1712,8 @@
     renderTaxaList(); // räknar om priser och maxtidsspärrar med den nya tiden
     if (refreshOpenDetail) refreshOpenDetail();
   }
-  document.getElementById('calc-now-btn').addEventListener('click', refreshCalcTime);
-  // Klockan går vidare även om ingen rör appen - uppdatera automatiskt var 5:e minut
-  setInterval(refreshCalcTime, 5 * 60 * 1000);
+  // Klockan går vidare även om ingen rör appen - uppdatera automatiskt varje minut
+  setInterval(refreshCalcTime, 60 * 1000);
 
   // ---------- Detaljkort ----------
   const detailCard = document.getElementById('detail-card');
