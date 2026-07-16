@@ -151,7 +151,7 @@
   }
   #theme-row {
     display: flex; align-items: center; gap: 10px;
-    margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);
+    margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border);
     font-size: 13px; font-weight: 600;
   }
   #theme-row #loaded-count { flex: 1; min-width: 0; }
@@ -290,7 +290,7 @@
   body.light-theme #nearest-list { scrollbar-color: rgba(0,0,0,0.4) transparent; }
   body.light-theme #nearest-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.4); }
   #nearest-placeholder { font-size: 12px; color: var(--text-dim); line-height: 1.4; margin: 4px 0 8px 0; }
-  #nearest-distance-note { font-size: 10.5px; color: var(--text-dim); margin: 2px 0 6px 0; font-style: italic; min-height: 14px; }
+  #nearest-distance-note { font-size: 10.5px; color: var(--text-dim); margin: 2px 0 6px 0; font-style: italic; min-height: 14px; text-align: right; }
   .nearest-row {
     display: flex; align-items: center; gap: 8px;
     padding: 7px 0 7px 8px; border-bottom: 1px solid var(--border);
@@ -359,9 +359,10 @@
     cursor: pointer;
   }
   #price-endpoints-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; max-width: 220px; }
+  #price-max-label { text-align: right; }
   #price-gratis-btn.at-zero { opacity: 0.4; }
   #mer-info-header {
-    margin-top: 10px; padding: 6px 2px; cursor: pointer;
+    margin-top: 5px; padding: 6px 2px; cursor: pointer;
   }
   #mer-info-arrow { font-size: 22px; line-height: 1; transition: transform 0.2s ease; color: var(--text-dim); }
   #mer-info-header.expanded #mer-info-arrow { transform: rotate(90deg); }
