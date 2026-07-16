@@ -1315,7 +1315,7 @@
     const detailList = document.getElementById('mer-info-detail-list');
     detailList.innerHTML = '';
 
-    FREE_ORDER.forEach(label => {
+    [...FREE_ORDER].reverse().forEach(label => {
       const free = FREE_GROUPS[label];
       if (!fitsDuration(free)) return; // döljs helt om vald tid är längre än maxtiden
       const row = document.createElement('div');
