@@ -178,6 +178,7 @@
   #install-instructions-overlay, #android-fallback-overlay {
     display: none; position: absolute; inset: 0; z-index: 900;
     background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     align-items: center; justify-content: center;
   }
   #install-instructions-overlay.show, #android-fallback-overlay.show { display: flex; }
