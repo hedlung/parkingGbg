@@ -212,6 +212,7 @@
   #android-install-overlay {
     display: none; position: absolute; inset: 0; z-index: 900;
     background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     align-items: center; justify-content: center;
   }
   #android-install-overlay.show { display: flex; }
@@ -1951,8 +1952,13 @@
   function setTheme(theme) {
     document.body.classList.toggle('light-theme', theme === 'light');
     themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+    try { localStorage.setItem('parkera-theme', theme); } catch (e) { /* t.ex. privat läge - strunta i att spara */ }
   }
   let currentTheme = 'dark';
+  try {
+    const savedTheme = localStorage.getItem('parkera-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') currentTheme = savedTheme;
+  } catch (e) { /* t.ex. privat läge - kör med standardtemat */ }
   setTheme(currentTheme);
   themeToggle.addEventListener('click', () => {
     currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
