@@ -497,27 +497,39 @@
   #detail-card.open { transform: translateY(0); }
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
   .info-grid {
-    display: grid; grid-template-columns: 1fr auto;
-    align-items: baseline; column-gap: 10px; row-gap: 3px;
+    display: grid; grid-template-columns: 1fr auto auto;
+    align-items: baseline; column-gap: 6px; row-gap: 3px;
+    flex: 1; min-width: 0;
   }
-  #detail-card .badge {
-    display: inline-flex; align-items: center; font-size: 12px; font-weight: 600;
-    color: var(--text-dim);
-    justify-self: start;
+  #detail-card h2 {
+    font-size: 15px; margin: 0; line-height: 1.3; grid-column: 1; grid-row: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .d-swatch { display: none; margin-right: 5px; flex: 0 0 auto; }
+  #detail-card .addr { font-size: 12px; color: var(--text-dim); grid-column: 1; grid-row: 2; min-height: 1em; }
+  .d-swatch {
+    display: none; align-self: center; grid-column: 2; grid-row: 1;
+  }
   .d-swatch.circle { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .d-swatch.triangle {
     display: inline-block; width: 0; height: 0;
     border-left: 5px solid transparent; border-right: 5px solid transparent;
     border-bottom: 8px solid currentColor;
   }
-  #detail-card h2 { font-size: 15px; margin: 0; line-height: 1.3; }
-  #detail-card .addr { font-size: 12px; color: var(--text-dim); }
+  .taxa-line {
+    grid-column: 3; grid-row: 1; display: flex; align-items: baseline; gap: 15px;
+  }
+  .badge-text, .slots-text {
+    font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
+  }
+  .platskod-text {
+    font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
+    grid-column: 3; grid-row: 2;
+  }
   #detail-card .close-x {
     width: 34px; height: 34px; border-radius: 50%;
     background: var(--accent); display: flex; align-items: center; justify-content: center;
     font-size: 18px; font-weight: 700; color: white;
+    flex: 0 0 auto; margin-left: 10px;
   }
   #detail-card.no-stats .stats { display: none; }
   #detail-card .stats {
@@ -527,12 +539,7 @@
   .cost-block, .dist-block { flex: 0 0 auto; }
   .cost-block .v, .dist-block .v { font-size: 18px; font-weight: 700; }
   .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
-  .slots-badge {
-    font-size: 12px; font-weight: 600; color: var(--text-dim);
-    white-space: nowrap;
-    justify-self: start;
-  }
-  #detail-card.no-stats .slots-badge { display: none; }
+  #detail-card.no-stats .platskod-text { display: none; }
   .nav-wrap { display: flex; gap: 8px; flex: 0 0 auto; margin-left: 14px; }
   .nav-btn-wrap { position: relative; }
   .nav-btn {
@@ -758,9 +765,13 @@
     <div class="top-row">
       <div class="info-grid">
         <h2 id="d-title">Vasagatan</h2>
-        <div class="badge" id="d-badge"><span class="d-swatch" id="d-swatch"></span><span id="d-badge-text">TAXA 3</span></div>
-        <span class="addr" id="d-addr">Vasastaden, Göteborg</span>
-        <span class="slots-badge" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
+        <span class="d-swatch" id="d-swatch"></span>
+        <div class="taxa-line">
+          <span class="badge-text" id="d-badge-text">TAXA 3</span>
+          <span class="slots-text" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
+        </div>
+        <span class="addr" id="d-addr">Vasastaden</span>
+        <span class="platskod-text" id="d-platskod">Platskod: 805</span>
       </div>
       <div class="close-x" id="d-close">✕</div>
     </div>
@@ -1059,7 +1070,7 @@
           rules: p.ParkingCost || '', spots: []
         };
       }
-      TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT });
+      TAXA_GROUPS[code].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT, platskod: p.PhoneParkingCode || '' });
     });
     TAXA_ORDER = Object.keys(TAXA_GROUPS).sort((a, b) => {
       const ka = taxaSortKey(a), kb = taxaSortKey(b);
@@ -1075,7 +1086,7 @@
       if (!FREE_GROUPS[label]) {
         FREE_GROUPS[label] = { id, label, maxMinutes: parseMaxParkingMinutes(maxLabel), rules: 'Gratis parkering, max ' + maxLabel + ' i följd. Kontrollera skyltning på plats.', spots: [] };
       }
-      FREE_GROUPS[label].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT });
+      FREE_GROUPS[label].spots.push({ lat: p.Lat, lng: p.Long, title: p.Name || 'Okänd gata', slots: p.ParkingSpaces, wkt: p.WKT, platskod: p.PhoneParkingCode || '' });
     });
     FREE_ORDER = Object.keys(FREE_GROUPS).sort((a, b) => {
       const ma = FREE_GROUPS[a].maxMinutes ?? Infinity, mb = FREE_GROUPS[b].maxMinutes ?? Infinity;
@@ -1109,10 +1120,11 @@
         const showDetail = () => {
           const cost = computeCost(taxa.costParsed, calcTime, getDurationHours());
           openDetail({
-            badge: taxa.name.toUpperCase(), title: spot.title, addr: 'Göteborg',
+            badge: taxa.name.toUpperCase(), title: spot.title, addr: '',
             cost: (cost !== null ? cost + ' kr' : '—'),
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng), true) : '—',
             slots: spot.slots ?? '—',
+            platskod: spot.platskod,
             costLabel: 'för ' + formatHours(getDurationHours()),
             swatchColor: taxa.color, swatchShape: 'circle',
             lat: spot.lat, lng: spot.lng
@@ -1151,10 +1163,11 @@
       free.spots.forEach(spot => {
         const showDetail = () => {
           openDetail({
-            badge: free.label.toUpperCase(), title: spot.title, addr: 'Göteborg',
+            badge: free.label.toUpperCase(), title: spot.title, addr: '',
             cost: 'Gratis',
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng), true) : '—',
             slots: spot.slots ?? '—',
+            platskod: spot.platskod,
             costLabel: 'vald tid: ' + formatHours(getDurationHours()),
             swatchColor: free.color, swatchShape: 'triangle',
             lat: spot.lat, lng: spot.lng
@@ -1647,11 +1660,11 @@
     const spots = [];
     FREE_ORDER.forEach(label => {
       const f = FREE_GROUPS[label];
-      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color, slots: s.slots, badge: f.label.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers }));
+      f.spots.forEach(s => spots.push({ groupId: f.id, type: 'free', name: s.title, lat: s.lat, lng: s.lng, freeLabel: f.label, color: f.color, slots: s.slots, badge: f.label.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers, platskod: s.platskod }));
     });
     TAXA_ORDER.forEach(code => {
       const t = TAXA_GROUPS[code];
-      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color, slots: s.slots, badge: t.name.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers }));
+      t.spots.forEach(s => spots.push({ groupId: t.id, type: 'taxa', name: s.title, lat: s.lat, lng: s.lng, costParsed: t.costParsed, color: t.color, slots: s.slots, badge: t.name.toUpperCase(), wkt: s.wkt, leafletLayers: s.leafletLayers, platskod: s.platskod }));
     });
     return spots;
   }
@@ -1721,8 +1734,9 @@
             return c !== null ? c + ' kr' : '—';
           })();
           openDetail({
-            badge: s.badge, title: s.name, addr: 'Göteborg',
+            badge: s.badge, title: s.name, addr: '',
             cost: cost2, dist: formatDistance(closest.dist, !closest.isReal), slots: combinedSlots,
+            platskod: closest.platskod,
             costLabel: s.type === 'taxa' ? 'för ' + formatHours(h) : 'vald tid: ' + formatHours(h),
             swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
             lat: closest.lat, lng: closest.lng
@@ -1821,6 +1835,7 @@
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
     document.getElementById('d-slots').textContent = data.slots;
+    document.getElementById('d-platskod').textContent = data.platskod ? 'Platskod: ' + data.platskod : '';
 
     const hitMenuBtn = document.getElementById('d-nav-hit-btn');
     const fromMenuBtn = document.getElementById('d-nav-from-btn');
