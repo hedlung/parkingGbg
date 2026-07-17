@@ -222,14 +222,14 @@
     top: 0;
     z-index: 605;
     width: 42px; height: 68px;
-    background: #000000;
+    background: var(--panel);
+    border: 1px solid var(--border); border-left: none;
     border-radius: 0 14px 14px 0;
     box-shadow: var(--shadow);
-    font-size: 18px; color: white;
+    font-size: 18px; color: var(--text);
     display: none; /* dold som standard - visas först efter "Ställ in tid och maxpris" */
   }
   #edge-tab.show { display: flex; align-items: center; justify-content: center; }
-  body.light-theme #edge-tab { background: #ffffff; color: #000000; }
   /* Två överlappande pilar som korsfejdar mot slutet av glidningen, istället för att bytas ut abrupt */
   .tab-icon {
     position: absolute; inset: 0;
@@ -254,7 +254,7 @@
   #panel {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 14px 0 14px 14px;
     box-shadow: var(--shadow);
     max-height: calc(100vh - 68px);
     max-height: calc(100dvh - 68px);
