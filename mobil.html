@@ -219,15 +219,16 @@
   /* Fliken är ett fysiskt barn till panelen och ärver därför exakt samma transform/rörelse - garanterat klistrad, ingen separat beräkning som kan hamna fel */
   #edge-tab {
     position: absolute; right: -42px;
-    /* Centrerad mot HELA skärmens höjd (50dvh), omräknat till panelens lokala koordinater eftersom panelen själv börjar 68px ner */
-    top: calc(50dvh - 68px); transform: translateY(-50%);
+    top: 0;
     z-index: 605;
     width: 42px; height: 68px;
     background: #000000;
     border-radius: 0 14px 14px 0;
     box-shadow: var(--shadow);
     font-size: 18px; color: white;
+    display: none; /* dold som standard - visas först efter "Ställ in tid och maxpris" */
   }
+  #edge-tab.show { display: flex; align-items: center; justify-content: center; }
   body.light-theme #edge-tab { background: #ffffff; color: #000000; }
   /* Två överlappande pilar som korsfejdar mot slutet av glidningen, istället för att bytas ut abrupt */
   .tab-icon {
@@ -550,6 +551,16 @@
   }
   #locate-btn.locating { background: var(--text-dim); border-color: var(--text-dim); }
 
+  #setup-btn {
+    display: none;
+    position: absolute; left: 12px; right: 64px; top: 56px; z-index: 600;
+    height: 44px; border-radius: 13px;
+    background: var(--accent); border: 1px solid var(--accent); color: white;
+    font-weight: 700; font-size: 14px;
+    box-shadow: var(--shadow);
+  }
+  #setup-btn.show { display: block; }
+
   #scrim {
     position: absolute; inset: 0; background: rgba(0,0,0,0.3);
     z-index: 580; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
@@ -568,7 +579,7 @@
   <div id="topbar">
     <div id="search-wrap">
       <span style="color:var(--text-dim); font-size: 42px; line-height: 1; flex: 0 0 auto;">⌕</span>
-      <input id="search-input" placeholder="Sök adress, gata eller taxa" autocomplete="off">
+      <input id="search-input" placeholder="Sök adress, gata eller parkering" autocomplete="off">
       <div id="search-clear">✕</div>
       <div id="search-suggestions"></div>
     </div>
@@ -582,6 +593,7 @@
       </svg>
     </div>
   </div>
+  <button id="setup-btn">Ställ in tid och maxpris</button>
 
   <div id="panel-wrap">
     <div id="edge-tab">
@@ -1195,6 +1207,26 @@
     panelIsOpen ? closePanel() : openPanel();
   });
   scrim.addEventListener('click', closePanel);
+
+  // ---------- Sökflöde: nyladdad -> träff (visa knapp) -> knapptryck (visa pil, öppna meny) ----------
+  const setupBtn = document.getElementById('setup-btn');
+  function resetSearchFlow() {
+    // Nollställer helt, som vid en nyladdning: ingen knapp, ingen pil, menyn stängd
+    setupBtn.classList.remove('show');
+    edgeTab.classList.remove('show');
+    closePanel();
+  }
+  function showSetupPrompt() {
+    // En ny träff (sökning eller Hitta mig) - visa knappen, dölj pilen, stäng ev. redan öppen meny
+    setupBtn.classList.add('show');
+    edgeTab.classList.remove('show');
+    closePanel();
+  }
+  setupBtn.addEventListener('click', () => {
+    setupBtn.classList.remove('show');
+    edgeTab.classList.add('show');
+    openPanel();
+  });
 
   // ---------- Kombinerad lista: gratis överst, sedan taxor ----------
 
@@ -2081,6 +2113,7 @@
     searchClear.classList.add('show');
     setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
     closeDetailCard();
+    showSetupPrompt();
   }
 
   let currentSuggestionItems = [];
@@ -2124,6 +2157,7 @@
     searchClear.classList.toggle('show', query.length > 0);
     clearTimeout(searchDebounceTimer);
     suggestionSelected = false;
+    resetSearchFlow(); // en ny sökning påbörjas - nollställ knapp/pil/meny helt
     if (query.length < 2) {
       closeSuggestionsBox();
       return;
@@ -2178,7 +2212,11 @@
     searchInput.value = '';
     searchClear.classList.remove('show');
     closeSuggestionsBox();
+    resetSearchFlow();
     searchInput.focus();
+  });
+  searchInput.addEventListener('focus', () => {
+    searchInput.select(); // hela texten markeras, så nästa skrivna tecken ersätter allt
   });
 
   document.addEventListener('click', (e) => {
@@ -2217,6 +2255,7 @@
         updateReferencePoint(latitude, longitude);
         locateBtn.classList.remove('locating');
         locateBtn.innerHTML = locateIconHTML;
+        showSetupPrompt();
       },
       (err) => {
         locateBtn.classList.remove('locating');
