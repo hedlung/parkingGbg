@@ -2016,6 +2016,32 @@
       addr.style.marginLeft = nameWidth < midPoint ? (midPoint - nameWidth) + 'px' : '10px';
     });
   }
+  const districtCache = {}; // "lat,lng" (avrundat) -> stadsdelsnamn (eller null om inget hittades)
+  let detailAddrRequestId = 0;
+  function fetchDistrictForDetail(lat, lng) {
+    const myRequestId = ++detailAddrRequestId;
+    const key = lat.toFixed(4) + ',' + lng.toFixed(4);
+    if (districtCache.hasOwnProperty(key)) {
+      applyDistrict(districtCache[key], myRequestId);
+      return;
+    }
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`)
+      .then(r => r.json())
+      .then(result => {
+        const a = result.address || {};
+        const district = a.suburb || a.city_district || a.neighbourhood || a.quarter || null;
+        districtCache[key] = district;
+        applyDistrict(district, myRequestId);
+      })
+      .catch(() => { districtCache[key] = null; });
+  }
+  function applyDistrict(district, myRequestId) {
+    if (myRequestId !== detailAddrRequestId) return; // en nyare popup har hunnit öppnas sen dess - strunta i svaret
+    if (!district) return; // inget hittades - adressraden förblir tom, precis som innan
+    const addrEl = document.getElementById('d-addr');
+    addrEl.textContent = district;
+    positionDetailAddr();
+  }
   function openDetail(data) {
     document.getElementById('d-badge-text').textContent = data.badge;
     const swatch = document.getElementById('d-swatch');
@@ -2026,6 +2052,7 @@
     document.getElementById('d-from-fran').textContent = data.title + ' (P)';
     document.getElementById('d-from-till').textContent = (searchInput.value.trim() || 'Vald mål-adress') + ' (mål)';
     document.getElementById('d-addr').textContent = data.addr;
+    if (data.lat != null && data.lng != null) fetchDistrictForDetail(data.lat, data.lng);
     document.getElementById('d-cost').textContent = data.cost;
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
