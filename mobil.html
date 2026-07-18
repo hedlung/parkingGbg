@@ -1857,7 +1857,7 @@
       const row = document.createElement('div');
       const isActive = s.members.some(m => spotKey(m.groupId, m.lat, m.lng) === selectedSpotKey);
       row.className = 'nearest-row' + (isActive ? ' active' : '');
-      const cost = s.type === 'free' ? s.freeLabel : (() => {
+      const cost = s.type === 'free' ? '0 kr' : (() => {
         const c = computeCost(s.costParsed, calcTime, hours);
         return c !== null ? c + ' kr' : '—';
       })();
