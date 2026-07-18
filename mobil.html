@@ -329,6 +329,8 @@
     border-bottom: 10px solid var(--free);
   }
   .nearest-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nearest-qty-col { width: 16px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; }
+  .nearest-qty-dot { border-radius: 50%; background: var(--text-dim); }
   .nearest-dist { color: var(--text-dim); font-size: 11px; width: 46px; text-align: right; flex: 0 0 auto; }
   .nearest-cost { font-weight: 700; width: 94px; flex: 0 0 auto; text-align: right; white-space: nowrap; }
   .nearest-cost.warn { color: #f59e0b; font-size: 10.5px; }
@@ -1716,9 +1718,12 @@
       // Slår ihop antal platser från alla segment i gruppen, om det går att räkna
       const slotNumbers = s.members.map(m => m.slots).filter(v => typeof v === 'number');
       const combinedSlots = slotNumbers.length > 0 ? slotNumbers.reduce((a, b) => a + b, 0) : '—';
+      // Prickens diameter skalas med kvadratroten av antal platser, så skillnaden mellan t.ex. 2 och 40 platser inte blir orimlig
+      const qtyDotSize = typeof combinedSlots === 'number' ? Math.max(3, Math.min(15, Math.round(Math.sqrt(combinedSlots) * 2.4))) : 0;
       row.innerHTML = `
         <div class="nearest-swatch ${s.type === 'free' ? 'free-tri' : ''}" style="${s.type === 'free' ? 'border-bottom-color' : 'background'}:${s.color}"></div>
         <div class="nearest-name">${s.name}</div>
+        <div class="nearest-qty-col" title="${combinedSlots !== '—' ? combinedSlots + ' platser' : ''}">${qtyDotSize > 0 ? `<div class="nearest-qty-dot" style="width:${qtyDotSize}px;height:${qtyDotSize}px;"></div>` : ''}</div>
         <div class="nearest-dist">${formatDistance(s.dist, !s.isReal)}</div>
         <div class="nearest-cost">${cost}</div>
       `;
