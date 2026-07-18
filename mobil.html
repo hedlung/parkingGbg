@@ -1574,6 +1574,7 @@
     items.forEach(item => {
       const haloColor = item.type === 'free' ? '#ef4444' : '#39ff14'; // knallgrön för taxor, röd för gratis - så det syns oavsett originalfärg
       const shapes = item.shapes || (item.wkt ? parseWKT(item.wkt) : []);
+      const itemHaloLayers = [];
       if (shapes && shapes.length > 0) {
         shapes.forEach(shape => {
           // Halo bakom, bredare än originalet, så originalfärgen syns ovanpå som en kant
@@ -1583,17 +1584,23 @@
           hl.addTo(map);
           currentHighlightLayers.push(hl);
           haloLayers.push(hl);
+          itemHaloLayers.push(hl);
         });
       } else {
         const hl = L.circleMarker([item.lat, item.lng], { radius: 14, color: haloColor, weight: 4, fillOpacity: 0, interactive: false });
         hl.addTo(map);
         currentHighlightLayers.push(hl);
         haloLayers.push(hl);
+        itemHaloLayers.push(hl);
       }
-      // Lyfter fram originalfärgen (taxans/gratisgruppens egen färg) ovanpå halon
-      if (item.leafletLayers) {
-        item.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
+      // Lyfter fram parkeringen (halo + originalfärg) överst, ovanför allt highlight-relaterat som redan ritats
+      function raiseSpotAboveLine() {
+        itemHaloLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
+        if (item.leafletLayers) {
+          item.leafletLayers.forEach(l => { if (l.bringToFront) l.bringToFront(); });
+        }
       }
+      raiseSpotAboveLine();
       if (referencePoint) {
         // Snabbt: rak svart/vit "målsnöre"-linje direkt, som fallback/placeholder
         const lineWhite = L.polyline(
@@ -1607,6 +1614,7 @@
         lineWhite.addTo(map);
         lineBlack.addTo(map);
         currentHighlightLayers.push(lineWhite, lineBlack);
+        raiseSpotAboveLine(); // linjen las till efteråt - lyft fram parkeringen ovanför den igen
 
         // Byter sedan ut den raka linjen mot den riktiga gångvägen, om OSRM hinner svara
         fetchOsrmRoute({ lat: referencePoint.lat, lng: referencePoint.lng }, { lat: item.lat, lng: item.lng }).then(coords => {
@@ -1619,6 +1627,7 @@
           routeWhite.addTo(map);
           routeBlack.addTo(map);
           currentHighlightLayers.push(routeWhite, routeBlack);
+          raiseSpotAboveLine(); // den nya vägen las också till efteråt - lyft fram parkeringen ovanför den igen
         });
       }
     });
