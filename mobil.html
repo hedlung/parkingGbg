@@ -653,8 +653,29 @@
     border-radius: 13px;
     display: flex; align-items: center; justify-content: center;
     box-shadow: var(--shadow); font-size: 19px; color: white;
+    position: relative;
   }
   #locate-btn.locating { background: var(--text-dim); border-color: var(--text-dim); }
+  #locate-confirm-popup {
+    position: absolute; top: calc(100% + 5px); right: calc(100% + 5px); width: 210px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    box-shadow: var(--shadow); padding: 14px; z-index: 950;
+    transform-origin: top right;
+    transform: scale(0.3) translate(137px, -137px); opacity: 0; pointer-events: none;
+    transition: transform 1.12s cubic-bezier(.2,.9,.3,1.1), opacity 0.8s ease;
+  }
+  #locate-confirm-popup.show { transform: scale(1) translate(0,0); opacity: 1; pointer-events: auto; }
+  #locate-confirm-popup p { margin: 0 0 12px 0; font-size: 13.5px; line-height: 1.4; color: var(--text); font-weight: 400; }
+  .locate-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .locate-confirm-actions button { padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; border: none; }
+  #locate-confirm-cancel { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+  #locate-confirm-ok { background: var(--accent); color: white; }
+  #locate-blur-overlay {
+    display: none; position: absolute; inset: 0; z-index: 940;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  #locate-blur-overlay.show { display: block; }
 
   #setup-btn {
     display: none;
@@ -701,6 +722,13 @@
         <line x1="1.5" y1="12" x2="5.5" y2="12"/>
         <line x1="18.5" y1="12" x2="22.5" y2="12"/>
       </svg>
+      <div id="locate-confirm-popup">
+        <p>Välj nuvarande position?</p>
+        <div class="locate-confirm-actions">
+          <button id="locate-confirm-cancel" type="button">Avbryt</button>
+          <button id="locate-confirm-ok" type="button">OK</button>
+        </div>
+      </div>
     </div>
   </div>
   <button id="setup-btn">Ställ in tid och maxpris</button>
@@ -769,6 +797,7 @@
   </div>
 
   <div id="nav-blur-overlay"></div>
+  <div id="locate-blur-overlay"></div>
 
   <div id="waze-warning-overlay">
     <div id="waze-warning-box">
@@ -2579,8 +2608,9 @@
 
   // ---------- Hitta mig (riktig geolokalisering) ----------
   const locateBtn = document.getElementById('locate-btn');
+  const topbar = document.getElementById('topbar');
   const locateIconHTML = locateBtn.innerHTML;
-  locateBtn.addEventListener('click', () => {
+  function doLocate() {
     if (!navigator.geolocation) {
       alert('Den här webbläsaren stödjer inte platsdelning.');
       return;
@@ -2618,6 +2648,39 @@
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }
+  const locateConfirmPopup = document.getElementById('locate-confirm-popup');
+  const locateBlurOverlay = document.getElementById('locate-blur-overlay');
+  function showLocateConfirm() {
+    locateConfirmPopup.classList.add('show');
+    locateBlurOverlay.classList.add('show');
+    topbar.style.zIndex = '999'; // lyfter sökfält+knapp ovanför blur-overlayen (som annars måste ligga högre än allt annat)
+  }
+  function hideLocateConfirm() {
+    locateConfirmPopup.classList.remove('show');
+    locateBlurOverlay.classList.remove('show');
+    topbar.style.zIndex = '';
+  }
+  document.getElementById('locate-confirm-cancel').addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideLocateConfirm();
+  });
+  document.getElementById('locate-confirm-ok').addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideLocateConfirm();
+    doLocate();
+  });
+  document.addEventListener('click', (e) => {
+    if (locateConfirmPopup.classList.contains('show') && !document.getElementById('locate-btn').contains(e.target)) {
+      hideLocateConfirm();
+    }
+  });
+  locateBtn.addEventListener('click', () => {
+    if (searchInput.value.trim().length > 0) {
+      showLocateConfirm();
+    } else {
+      doLocate();
+    }
   });
 </script>
 </body>
