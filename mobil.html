@@ -656,6 +656,7 @@
     position: relative;
   }
   #locate-btn.locating { background: var(--text-dim); border-color: var(--text-dim); }
+  #locate-icon-wrap { display: flex; align-items: center; justify-content: center; }
   #locate-confirm-popup {
     position: absolute; top: calc(100% + 5px); right: calc(100% + 5px); width: 210px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
@@ -715,13 +716,15 @@
       <div id="search-suggestions"></div>
     </div>
     <div id="locate-btn">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-        <circle cx="12" cy="12" r="4.2"/>
-        <line x1="12" y1="1.5" x2="12" y2="5.5"/>
-        <line x1="12" y1="18.5" x2="12" y2="22.5"/>
-        <line x1="1.5" y1="12" x2="5.5" y2="12"/>
-        <line x1="18.5" y1="12" x2="22.5" y2="12"/>
-      </svg>
+      <span id="locate-icon-wrap">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2"/>
+          <line x1="12" y1="1.5" x2="12" y2="5.5"/>
+          <line x1="12" y1="18.5" x2="12" y2="22.5"/>
+          <line x1="1.5" y1="12" x2="5.5" y2="12"/>
+          <line x1="18.5" y1="12" x2="22.5" y2="12"/>
+        </svg>
+      </span>
       <div id="locate-confirm-popup">
         <p>Välj nuvarande position?</p>
         <div class="locate-confirm-actions">
@@ -2609,14 +2612,15 @@
   // ---------- Hitta mig (riktig geolokalisering) ----------
   const locateBtn = document.getElementById('locate-btn');
   const topbar = document.getElementById('topbar');
-  const locateIconHTML = locateBtn.innerHTML;
+  const locateIconWrap = document.getElementById('locate-icon-wrap');
+  const locateIconHTML = locateIconWrap.innerHTML;
   function doLocate() {
     if (!navigator.geolocation) {
       alert('Den här webbläsaren stödjer inte platsdelning.');
       return;
     }
     locateBtn.classList.add('locating');
-    locateBtn.textContent = '⏳';
+    locateIconWrap.textContent = '⏳';
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords;
@@ -2638,12 +2642,12 @@
         reverseGeocode(latitude, longitude);
         closeDetailCard();
         locateBtn.classList.remove('locating');
-        locateBtn.innerHTML = locateIconHTML;
+        locateIconWrap.innerHTML = locateIconHTML;
         showSetupPrompt();
       },
       (err) => {
         locateBtn.classList.remove('locating');
-        locateBtn.innerHTML = locateIconHTML;
+        locateIconWrap.innerHTML = locateIconHTML;
         alert('Kunde inte hämta din position. Kontrollera att platsdelning är tillåten för sidan.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
