@@ -1434,9 +1434,11 @@
         const row = document.createElement('div');
         row.className = 'price-detail-row';
         row.dataset.rowId = taxa.id;
+        const platskod = taxa.spots[0] && taxa.spots[0].platskod;
+        const nameText = 'Taxa ' + taxa.code + (platskod ? ', Platskod: ' + platskod : '');
         row.innerHTML = `
           <div class="taxa-swatch" style="background:${taxa.color}"></div>
-          <div class="taxa-name">Taxa ${taxa.code}</div>
+          <div class="taxa-name" style="width:auto;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${nameText}</div>
           <div class="taxa-price">${cost} kr</div>
           <div class="info-btn" data-info="${taxa.id}">ⓘ</div>
         `;
