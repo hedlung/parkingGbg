@@ -3,29 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Platsuppskattning från längd</title>
+<title>Riktiga stadsdelsnamn - från datan</title>
 <style>
   body { font-family:-apple-system,sans-serif; background:#10141a; color:#eef1f5; margin:0; padding:20px; }
   h1 { font-size:18px; }
-  h3 { font-size:14px; margin-top:24px; }
   p { color:#8b97a5; font-size:13px; }
   #status { color:#f59e0b; margin-top:10px; }
-  table { border-collapse:collapse; width:100%; margin-top:12px; font-size:12.5px; }
+  #progress { font-size:12px; color:#8b97a5; margin-top:6px; }
+  table { border-collapse:collapse; width:100%; margin-top:16px; font-size:13px; }
   th, td { text-align:left; padding:5px 8px; border-bottom:1px solid #2a3340; }
-  th { color:#8b97a5; font-size:10.5px; text-transform:uppercase; position:sticky; top:0; background:#10141a; }
+  th { color:#8b97a5; font-size:10.5px; text-transform:uppercase; }
   .stat-box { background:#1a2029; border-radius:10px; padding:14px 18px; margin-top:12px; display:inline-block; margin-right:12px; }
   .stat-num { font-size:22px; font-weight:700; }
   .stat-label { font-size:11px; color:#8b97a5; }
-  code { background:#212936; padding:1px 5px; border-radius:4px; }
+  .long { color:#ef4444; font-weight:700; }
 </style>
 </head>
 <body>
 
-<h1>Platsuppskattning: meter per parkeringsplats</h1>
-<p>Hämtar all data (taxa + gratis), beräknar längden på varje parkeringssegment från WKT-geometrin (Haversine-summa längs linjen), och räknar ut ett förhållande (meter/plats) från de poster som har ett riktigt platsantal. Används sedan för att uppskatta platsantal på poster som saknar det.</p>
-<div id="status">Hämtar data...</div>
+<h1>Riktiga stadsdelsnamn - hämtat från faktiska parkeringskoordinater</h1>
+<p>Hämtar parkeringsdata, tar ut var 50:e post spritt över hela listan, och omvänd-geokodar varje koordinat via Nominatim (samma tjänst appen redan använder) med 1,1 sekunds paus mellan varje anrop, enligt Nominatims användarvillkor. Kan ta någon minut.</p>
+<div id="status">Hämtar parkeringsdata...</div>
+<div id="progress"></div>
 <div id="stats"></div>
-<div id="tables"></div>
+<table id="result-table" style="display:none;">
+  <thead><tr><th>Stadsdel/område</th><th>Tecken</th><th>Exempel-gata</th></tr></thead>
+  <tbody id="result-body"></tbody>
+</table>
 
 <script>
   const APPID = 'd5d377dd-ec35-4395-b965-e1da3920366b';
@@ -41,93 +45,57 @@
     });
   }
 
-  function haversine(lat1, lng1, lat2, lng2) {
-    const R = 6371000;
-    const toRad = d => d * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-  // Enkel WKT-parser för LINESTRING och MULTILINESTRING (de vanligaste för gatuparkering)
-  function wktLength(wkt) {
-    if (!wkt) return 0;
-    let total = 0;
-    const lineStrings = [];
-    if (wkt.startsWith('LINESTRING')) {
-      lineStrings.push(wkt);
-    } else if (wkt.startsWith('MULTILINESTRING')) {
-      const inner = wkt.replace('MULTILINESTRING', '').trim().slice(1, -1); // ta bort yttre parenteser
-      inner.split(/\)\s*,\s*\(/).forEach(part => lineStrings.push('LINESTRING(' + part.replace(/[()]/g, '') + ')'));
-    } else {
-      return 0; // POLYGON etc räknas inte här - gäller nästan aldrig gatuparkering
-    }
-    lineStrings.forEach(ls => {
-      const coordsStr = ls.replace(/LINESTRING\s*/, '').replace(/[()]/g, '');
-      const points = coordsStr.split(',').map(p => {
-        const [lng, lat] = p.trim().split(/\s+/).map(Number);
-        return { lat, lng };
-      });
-      for (let i = 1; i < points.length; i++) {
-        total += haversine(points[i-1].lat, points[i-1].lng, points[i].lat, points[i].lng);
-      }
-    });
-    return total;
+  async function reverseGeocode(lat, lng) {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&accept-language=sv`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('Nominatim-fel ' + res.status);
+    return res.json();
   }
 
   Promise.all([
     jsonp(BASE + `PublicTollParkings/${APPID}?format=JSON`, 'cbToll'),
     jsonp(BASE + `PublicTimeParkings/${APPID}?format=JSON`, 'cbTime')
-  ]).then(([tollData, timeData]) => {
+  ]).then(async ([tollData, timeData]) => {
     const tollList = tollData.PublicTollParkings || tollData || [];
     const timeList = timeData.PublicTimeParkings || timeData || [];
-    const all = [...tollList.map(p => ({...p, _type:'taxa'})), ...timeList.map(p => ({...p, _type:'gratis'}))];
+    const all = [...tollList, ...timeList].filter(p => p.Lat && p.Long);
 
-    const withData = [];
-    const withoutData = [];
-    all.forEach(p => {
-      const length = wktLength(p.WKT);
-      if (length <= 0) return; // ingen användbar geometri
-      const entry = { name: p.Name || '(okänt)', type: p._type, spaces: p.ParkingSpaces, length };
-      if (p.ParkingSpaces && p.ParkingSpaces > 0) {
-        entry.ratio = length / p.ParkingSpaces;
-        withData.push(entry);
-      } else {
-        withoutData.push(entry);
-      }
-    });
+    // Ta var 50:e post, spritt över hela listan
+    const sample = all.filter((_, i) => i % 50 === 0);
+    document.getElementById('status').textContent = `${all.length} parkeringar totalt, geokodar ${sample.length} spridda exempel...`;
 
-    const ratios = withData.map(e => e.ratio).sort((a,b) => a-b);
-    const median = ratios[Math.floor(ratios.length/2)];
-    const avg = ratios.reduce((a,b) => a+b, 0) / ratios.length;
+    const found = new Map(); // stadsdel -> exempel-gata
+    let done = 0;
 
-    document.getElementById('status').textContent =
-      `Klart. ${withData.length} poster med platsdata (för beräkning), ${withoutData.length} poster saknar platsdata.`;
+    for (const p of sample) {
+      try {
+        const geo = await reverseGeocode(p.Lat, p.Long);
+        const addr = geo.address || {};
+        const district = addr.suburb || addr.city_district || addr.neighbourhood || addr.quarter || null;
+        if (district && !found.has(district)) {
+          found.set(district, p.Name || '(okänt)');
+        }
+      } catch (e) { /* hoppa över och fortsätt */ }
+      done++;
+      document.getElementById('progress').textContent = `${done} / ${sample.length} geokodade, ${found.size} unika stadsdelar hittade hittills...`;
+      await sleep(1100); // Nominatim: max 1 anrop/sekund
+    }
 
+    const sorted = [...found.entries()].sort((a, b) => b[0].length - a[0].length);
+    const maxLen = sorted.length ? sorted[0][0].length : 0;
+
+    document.getElementById('status').textContent = `Klart. ${found.size} unika stadsdelsnamn hittade från ${sample.length} geokodade punkter.`;
+    document.getElementById('progress').textContent = '';
     document.getElementById('stats').innerHTML = `
-      <div class="stat-box"><div class="stat-num">${median.toFixed(1)} m</div><div class="stat-label">Median meter/plats</div></div>
-      <div class="stat-box"><div class="stat-num">${avg.toFixed(1)} m</div><div class="stat-label">Snitt meter/plats</div></div>
-      <div class="stat-box"><div class="stat-num">${ratios[0].toFixed(1)}–${ratios[ratios.length-1].toFixed(1)} m</div><div class="stat-label">Min–max</div></div>
+      <div class="stat-box"><div class="stat-num">${maxLen} tecken</div><div class="stat-label">Längsta hittade namn</div></div>
+      <div class="stat-box"><div class="stat-num">${found.size}</div><div class="stat-label">Unika stadsdelar</div></div>
     `;
-
-    // Tabell 1: exempel med känd data (sorterat efter ratio, för att se spridningen)
-    const sample1 = [...withData].sort((a,b)=>a.ratio-b.ratio);
-    const rows1 = [sample1[0], sample1[Math.floor(sample1.length*0.25)], sample1[Math.floor(sample1.length*0.5)],
-                   sample1[Math.floor(sample1.length*0.75)], sample1[sample1.length-1]]
-      .map(e => `<tr><td>${e.name}</td><td>${e.type}</td><td>${e.spaces}</td><td>${e.length.toFixed(1)} m</td><td>${e.ratio.toFixed(1)} m/plats</td></tr>`).join('');
-
-    // Tabell 2: uppskattning för poster UTAN data, med medianförhållandet
-    const estimated = withoutData.map(e => ({...e, est: Math.max(1, Math.round(e.length / median))}))
-      .sort((a,b) => b.length - a.length).slice(0, 20);
-    const rows2 = estimated.map(e => `<tr><td>${e.name}</td><td>${e.type}</td><td>${e.length.toFixed(1)} m</td><td><b>${e.est}</b> (uppskattat)</td></tr>`).join('');
-
-    document.getElementById('tables').innerHTML = `
-      <h3>Exempel med känd data (spridning låg→hög ratio)</h3>
-      <table><thead><tr><th>Namn</th><th>Typ</th><th>Platser</th><th>Längd</th><th>Ratio</th></tr></thead><tbody>${rows1}</tbody></table>
-
-      <h3>20 längsta poster UTAN platsdata - med uppskattning</h3>
-      <table><thead><tr><th>Namn</th><th>Typ</th><th>Längd</th><th>Uppskattat antal</th></tr></thead><tbody>${rows2}</tbody></table>
-    `;
+    document.getElementById('result-table').style.display = 'table';
+    document.getElementById('result-body').innerHTML = sorted.map(([name, example]) =>
+      `<tr><td>${name}</td><td class="${name.length > 18 ? 'long' : ''}">${name.length}</td><td>${example}</td></tr>`
+    ).join('');
   }).catch(err => {
     document.getElementById('status').textContent = 'Fel: ' + err.message;
   });
