@@ -545,7 +545,7 @@
   #detail-card.no-stats .platskod-text { display: none; }
   .nav-wrap { display: flex; gap: 8px; flex: 0 0 auto; margin-left: 14px; }
   #nav-blur-overlay {
-    display: none; position: absolute; inset: 0; z-index: 690;
+    display: none; position: absolute; inset: 0; z-index: 950;
     background: rgba(0,0,0,0.25);
     backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
   }
@@ -1933,6 +1933,39 @@
     detailCard.classList.toggle('no-stats', data.cost === '' && data.dist === '' && data.slots === '');
     detailCard.classList.add('open');
   }
+  // "Portal": flyttar tillfälligt den aktiva Hit/Från-knappen (med sin meny) till toppnivån i DOM:en
+  // med exakt samma skärmposition, så den kan ligga ovanför blur-overlayen även om den ursprungligen
+  // satt inuti detaljkortet (som annars har sin egen stacking context och skulle blurras med resten).
+  let portaledWrap = null, portaledPlaceholder = null;
+  function portalNavWrap(wrap) {
+    if (portaledWrap) return; // redan portalerad
+    const rect = wrap.getBoundingClientRect();
+    const appRect = document.getElementById('app').getBoundingClientRect();
+    portaledPlaceholder = document.createComment('nav-wrap-placeholder');
+    wrap.parentNode.insertBefore(portaledPlaceholder, wrap);
+    document.getElementById('app').appendChild(wrap);
+    wrap.style.position = 'absolute';
+    wrap.style.left = (rect.left - appRect.left) + 'px';
+    wrap.style.top = (rect.top - appRect.top) + 'px';
+    wrap.style.zIndex = '970';
+    portaledWrap = wrap;
+  }
+  function unportalNavWrap() {
+    if (!portaledWrap) return;
+    portaledWrap.style.position = '';
+    portaledWrap.style.left = '';
+    portaledWrap.style.top = '';
+    portaledWrap.style.zIndex = '';
+    portaledPlaceholder.parentNode.insertBefore(portaledWrap, portaledPlaceholder);
+    portaledPlaceholder.remove();
+    portaledWrap = null;
+    portaledPlaceholder = null;
+  }
+  function closeAllNavMenus() {
+    document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
+    document.getElementById('nav-blur-overlay').classList.remove('show');
+    unportalNavWrap();
+  }
   function toggleNavMenu(btnId, menuId) {
     document.getElementById(btnId).addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1940,14 +1973,11 @@
       const wrap = document.getElementById(btnId).closest('.nav-btn-wrap');
       const overlay = document.getElementById('nav-blur-overlay');
       const isOpen = menu.classList.contains('show');
-      document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
-      document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
+      closeAllNavMenus();
       if (!isOpen) {
+        portalNavWrap(wrap);
         menu.classList.add('show');
-        wrap.classList.add('spotlight');
         overlay.classList.add('show');
-      } else {
-        overlay.classList.remove('show');
       }
     });
   }
@@ -2021,30 +2051,18 @@
   });
   document.querySelectorAll('.nav-menu').forEach(menu => {
     menu.addEventListener('click', (e) => {
-      if (e.target.tagName === 'A') {
-        menu.classList.remove('show');
-        document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
-        document.getElementById('nav-blur-overlay').classList.remove('show');
-      }
+      if (e.target.tagName === 'A') closeAllNavMenus();
     });
   });
   document.addEventListener('click', (e) => {
-    document.querySelectorAll('.nav-menu.show').forEach(menu => {
-      if (!menu.contains(e.target) && e.target.id !== 'd-nav-hit-btn' && e.target.id !== 'd-nav-from-btn') {
-        menu.classList.remove('show');
-        document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
-        document.getElementById('nav-blur-overlay').classList.remove('show');
-      }
-    });
+    if (portaledWrap && !portaledWrap.contains(e.target)) closeAllNavMenus();
   });
   function closeDetailCard() {
     detailCard.classList.remove('open');
     clearHighlight();
     selectedSpotKey = null;
     refreshOpenDetail = null;
-    document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
-    document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
-    document.getElementById('nav-blur-overlay').classList.remove('show');
+    closeAllNavMenus();
     renderNearestList();
   }
   document.getElementById('d-close').addEventListener('click', closeDetailCard);
