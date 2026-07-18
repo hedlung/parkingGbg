@@ -658,7 +658,7 @@
   #locate-btn.locating { background: var(--text-dim); border-color: var(--text-dim); }
   #locate-icon-wrap { display: flex; align-items: center; justify-content: center; }
   #locate-confirm-popup {
-    position: absolute; top: calc(100% + 5px); right: calc(100% + 5px); width: 210px;
+    position: absolute; top: calc(100% + 5px); right: calc(100% + 5px); width: 250px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
     box-shadow: var(--shadow); padding: 14px; z-index: 950;
     transform-origin: top right;
@@ -666,7 +666,7 @@
     transition: transform 0.28s cubic-bezier(.2,.9,.3,1.1), opacity 0.2s ease;
   }
   #locate-confirm-popup.show { transform: scale(1) translate(0,0); opacity: 1; pointer-events: auto; }
-  #locate-confirm-popup p { margin: 0 0 12px 0; font-size: 13.5px; line-height: 1.4; color: var(--text); font-weight: 400; }
+  #locate-confirm-popup p { margin: 0 0 12px 0; font-size: 13.5px; line-height: 1.4; color: var(--text); font-weight: 400; white-space: nowrap; }
   .locate-confirm-actions { display: flex; gap: 8px; }
   .locate-confirm-actions button { flex: 1; padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; border: none; text-align: center; }
   #locate-confirm-cancel { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
