@@ -2043,6 +2043,7 @@
   let lastLocalMatches = [];
   let suggestionSelected = false; // sant om användaren redan valt ett förslag - då ska inga försenade svar dyka upp igen
   let referenceMarker = null;
+  let userLocationMarker = null;
 
   // Alla platsnamn vi känner till lokalt (taxor + gratiskategorier), utan dubbletter
   // Bygger om ett Nominatim-svar till svensk adressordning: "Gata Nummer, postnummer" som huvudrad,
@@ -2190,6 +2191,7 @@
     searchInput.value = item.searchValue;
     closeSuggestionsBox();
     setReferencePoint(item.lat, item.lng, item.searchValue);
+    if (userLocationMarker) { map.removeLayer(userLocationMarker); userLocationMarker = null; }
     map.setView([item.lat, item.lng], item.type === 'gata' ? 17 : 16);
     searchClear.classList.add('show');
     setTimeout(() => searchInput.blur(), 0); // göm tangentbordet efter valt förslag, fördröjt så click-eventet hinner landa rätt först
@@ -2307,7 +2309,6 @@
   });
 
   // ---------- Hitta mig (riktig geolokalisering) ----------
-  let userLocationMarker = null;
   const locateBtn = document.getElementById('locate-btn');
   const locateIconHTML = locateBtn.innerHTML;
   locateBtn.addEventListener('click', () => {
@@ -2321,7 +2322,7 @@
       (pos) => {
         const { latitude, longitude } = pos.coords;
         map.setView([latitude, longitude], 16);
-        if (referenceMarker) { map.removeLayer(referenceMarker); referenceMarker = null; }
+        setReferencePoint(latitude, longitude, 'Din plats');
         if (userLocationMarker) {
           userLocationMarker.setLatLng([latitude, longitude]);
         } else {
@@ -2333,7 +2334,6 @@
         searchClear.classList.remove('show');
         reverseGeocode(latitude, longitude);
         closeDetailCard();
-        updateReferencePoint(latitude, longitude);
         locateBtn.classList.remove('locating');
         locateBtn.innerHTML = locateIconHTML;
         showSetupPrompt();
