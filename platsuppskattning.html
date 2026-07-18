@@ -22,7 +22,7 @@
 <body>
 
 <h1>Riktiga stadsdelsnamn - hämtat från faktiska parkeringskoordinater</h1>
-<p>Hämtar parkeringsdata, tar ut var 50:e post spritt över hela listan, och omvänd-geokodar varje koordinat via Nominatim (samma tjänst appen redan använder) med 1,1 sekunds paus mellan varje anrop, enligt Nominatims användarvillkor. Kan ta någon minut.</p>
+<p>Hämtar parkeringsdata, tar ut ~150 poster spritt jämnt över hela listan, och omvänd-geokodar varje koordinat via Nominatim (samma tjänst appen redan använder) med 1,1 sekunds paus mellan varje anrop, enligt Nominatims användarvillkor. Tar ca 2,5-3 minuter.</p>
 <div id="status">Hämtar parkeringsdata...</div>
 <div id="progress"></div>
 <div id="stats"></div>
@@ -62,9 +62,11 @@
     const timeList = timeData.PublicTimeParkings || timeData || [];
     const all = [...tollList, ...timeList].filter(p => p.Lat && p.Long);
 
-    // Ta var 50:e post, spritt över hela listan
-    const sample = all.filter((_, i) => i % 50 === 0);
-    document.getElementById('status').textContent = `${all.length} parkeringar totalt, geokodar ${sample.length} spridda exempel...`;
+    // Ta ~150 poster, spritt jämnt över hela listan
+    const targetSamples = 150;
+    const step = Math.max(1, Math.floor(all.length / targetSamples));
+    const sample = all.filter((_, i) => i % step === 0);
+    document.getElementById('status').textContent = `${all.length} parkeringar totalt, geokodar ${sample.length} spridda exempel (tar ca ${Math.round(sample.length * 1.1 / 60)} minuter)...`;
 
     const found = new Map(); // stadsdel -> exempel-gata
     let done = 0;
