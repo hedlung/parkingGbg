@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platskod ↔ Taxa - analys</title>
+<style>
+  body { font-family:-apple-system,sans-serif; background:#10141a; color:#eef1f5; margin:0; padding:20px; }
+  h1 { font-size:18px; }
+  p { color:#8b97a5; font-size:13px; }
+  table { border-collapse:collapse; width:100%; margin-top:16px; font-size:13px; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid #2a3340; }
+  th { color:#8b97a5; font-size:11px; text-transform:uppercase; position:sticky; top:0; background:#10141a; }
+  tr:hover { background:#1a2029; }
+  #status { color:#f59e0b; margin-top:10px; }
+  .taxa-cell { font-weight:700; }
+  .count-badge { background:#212936; border-radius:6px; padding:2px 6px; font-size:11px; color:#8b97a5; }
+</style>
+</head>
+<body>
+
+<h1>Platskod ↔ Taxa — nulägesanalys</h1>
+<p>Hämtar riktig, skarp data direkt från data.goteborg.se (samma källa som appen). Kan ta några sekunder.</p>
+<div id="status">Hämtar data...</div>
+<table id="result-table" style="display:none;">
+  <thead>
+    <tr><th>Taxa</th><th>Platskod (PhoneParkingCode)</th><th>Gatunamn</th></tr>
+  </thead>
+  <tbody id="result-body"></tbody>
+</table>
+
+<script>
+  const APPID = 'd5d377dd-ec35-4395-b965-e1da3920366b';
+  const BASE = 'https://data.goteborg.se/ParkingService/v2.3/';
+
+  function jsonp(url, callbackName) {
+    return new Promise((resolve, reject) => {
+      window[callbackName] = (data) => { resolve(data); delete window[callbackName]; script.remove(); };
+      const script = document.createElement('script');
+      script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName;
+      script.onerror = () => reject(new Error('Kunde inte hämta data'));
+      document.body.appendChild(script);
+    });
+  }
+
+  function extractTaxa(charge) {
+    const m = charge && charge.match(/Taxa\s+(\w+)/i);
+    return m ? m[1].toUpperCase() : null;
+  }
+
+  jsonp(BASE + `PublicTollParkings/${APPID}?format=JSON`, 'handleTollData')
+    .then(data => {
+      const list = data.PublicTollParkings || data || [];
+      const rows = [];
+      list.forEach(p => {
+        const taxa = extractTaxa(p.ParkingCharge);
+        if (!taxa) return;
+        rows.push({ taxa, platskod: p.PhoneParkingCode || '(saknas)', name: p.Name || '(okänt)' });
+      });
+      // Sortera: taxa (naturligt: siffror först, sen bokstäver), sedan platskod
+      rows.sort((a, b) => {
+        const na = parseInt(a.taxa), nb = parseInt(b.taxa);
+        if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+        if (!isNaN(na) && isNaN(nb)) return -1;
+        if (isNaN(na) && !isNaN(nb)) return 1;
+        if (a.taxa !== b.taxa) return a.taxa.localeCompare(b.taxa);
+        return String(a.platskod).localeCompare(String(b.platskod));
+      });
+
+      // Räkna unika platskoder per taxa
+      const uniquePerTaxa = {};
+      rows.forEach(r => {
+        uniquePerTaxa[r.taxa] = uniquePerTaxa[r.taxa] || new Set();
+        uniquePerTaxa[r.taxa].add(r.platskod);
+      });
+
+      document.getElementById('status').textContent =
+        `Klart. ${rows.length} platser hittade, fördelat på ${Object.keys(uniquePerTaxa).length} taxor.`;
+
+      const tbody = document.getElementById('result-body');
+      let lastTaxa = null;
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        const showTaxaLabel = r.taxa !== lastTaxa;
+        tr.innerHTML = `
+          <td class="taxa-cell">${showTaxaLabel ? 'Taxa ' + r.taxa + ' <span class="count-badge">' + uniquePerTaxa[r.taxa].size + ' st platskoder</span>' : ''}</td>
+          <td>${r.platskod}</td>
+          <td>${r.name}</td>
+        `;
+        tbody.appendChild(tr);
+        lastTaxa = r.taxa;
+      });
+      document.getElementById('result-table').style.display = 'table';
+    })
+    .catch(err => {
+      document.getElementById('status').textContent = 'Fel: ' + err.message + ' (kan bero på nätverk eller att API:et är nere just nu)';
+    });
+</script>
+
+</body>
+</html>
