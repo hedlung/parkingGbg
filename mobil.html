@@ -562,6 +562,7 @@
   .nav-menu-header {
     padding: 0 2px 9px 2px;
     display: grid; grid-template-columns: auto 1fr; column-gap: 6px; row-gap: 2px;
+    align-items: baseline;
   }
   .nav-menu-header .k {
     font-size: 10px; color: var(--text-dim); font-weight: 700;
@@ -570,6 +571,11 @@
   .nav-menu-header .v {
     font-size: 11.5px; color: var(--text); font-weight: 700;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .nav-loc-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #3b82f6; border: 1.5px solid white;
+    margin-right: 4px; vertical-align: middle;
   }
   .nav-menu-links { display: flex; flex-direction: column; gap: 6px; }
   .nav-menu-links a {
@@ -815,7 +821,7 @@
           </button>
           <div class="nav-menu" id="d-nav-hit-menu">
             <div class="nav-menu-header">
-              <span class="k">Från</span><span class="v">Nuvarande plats</span>
+              <span class="k">Från</span><span class="v"><span class="nav-loc-dot"></span>Nuvarande plats</span>
               <span class="k">Till</span><span class="v" id="d-hit-till">Vald parkering</span>
             </div>
             <div class="nav-menu-links">
@@ -1875,9 +1881,9 @@
     swatch.className = 'd-swatch' + (data.swatchShape ? ' ' + data.swatchShape : '');
     swatch.style.color = data.swatchColor || '';
     document.getElementById('d-title').textContent = data.title;
-    document.getElementById('d-hit-till').textContent = data.title;
-    document.getElementById('d-from-fran').textContent = data.title;
-    document.getElementById('d-from-till').textContent = searchInput.value.trim() || 'Vald mål-adress';
+    document.getElementById('d-hit-till').textContent = data.title + ' (P)';
+    document.getElementById('d-from-fran').textContent = data.title + ' (P)';
+    document.getElementById('d-from-till').textContent = (searchInput.value.trim() || 'Vald mål-adress') + ' (mål)';
     document.getElementById('d-addr').textContent = data.addr;
     document.getElementById('d-cost').textContent = data.cost;
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
