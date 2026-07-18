@@ -520,18 +520,20 @@
   }
   #detail-card.open { transform: translateY(0); }
   #detail-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
-  .info-grid {
-    display: grid; grid-template-columns: 1fr auto auto;
-    align-items: baseline; column-gap: 6px; row-gap: 3px;
-    flex: 1; min-width: 0;
-  }
+  .card-content { flex: 1; min-width: 0; }
+  .title-row { display: flex; align-items: baseline; min-width: 0; position: relative; }
   #detail-card h2 {
-    font-size: 15px; margin: 0; line-height: 1.3; grid-column: 1; grid-row: 1;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 15px; margin: 0; line-height: 1.3; white-space: nowrap;
+    max-width: 75%; overflow: hidden; text-overflow: ellipsis;
+    flex: 0 1 auto;
   }
-  #detail-card .addr { font-size: 12px; color: var(--text-dim); grid-column: 1; grid-row: 2; min-height: 1em; }
+  #detail-card h2:only-child { max-width: 100%; }
+  #detail-card .addr {
+    font-size: 12px; color: var(--text-dim); white-space: nowrap;
+    margin-left: 10px; flex: 0 0 auto;
+  }
   .d-swatch {
-    display: none; align-self: center; grid-column: 2; grid-row: 1;
+    display: none; flex: 0 0 auto;
   }
   .d-swatch.circle { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .d-swatch.triangle {
@@ -539,16 +541,16 @@
     border-left: 5px solid transparent; border-right: 5px solid transparent;
     border-bottom: 8px solid currentColor;
   }
-  .taxa-line {
-    grid-column: 3; grid-row: 1; display: flex; align-items: baseline; gap: 15px;
+  .info-row {
+    display: flex; align-items: baseline; gap: 7px; margin-top: 5px; flex-wrap: wrap;
   }
-  .badge-text, .slots-text {
+  .badge-text, .slots-text, .platskod-text {
     font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
   }
-  .platskod-text {
-    font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
-    grid-column: 3; grid-row: 2;
-  }
+  .platskod-text::before { content: '\00b7'; margin-right: 7px; color: var(--border); }
+  .platskod-text:empty::before { content: none; }
+  .slots-text { font-weight: 700; color: var(--text); margin-left: 15px; }
+  .slots-text::before { content: '\00b7'; margin-right: 7px; color: var(--border); font-weight: 400; }
   #detail-card .close-x {
     width: 34px; height: 34px; border-radius: 50%;
     background: var(--accent); display: flex; align-items: center; justify-content: center;
@@ -859,15 +861,17 @@
 
   <div id="detail-card">
     <div class="top-row">
-      <div class="info-grid">
-        <h2 id="d-title">Vasagatan</h2>
-        <span class="d-swatch" id="d-swatch"></span>
-        <div class="taxa-line">
+      <div class="card-content">
+        <div class="title-row">
+          <h2 id="d-title">Vasagatan</h2>
+          <span class="addr" id="d-addr">Vasastaden</span>
+        </div>
+        <div class="info-row">
+          <span class="d-swatch" id="d-swatch"></span>
           <span class="badge-text" id="d-badge-text">TAXA 3</span>
+          <span class="platskod-text" id="d-platskod">Platskod: 805</span>
           <span class="slots-text" id="d-slots-badge"><span id="d-slots">6</span> platser</span>
         </div>
-        <span class="addr" id="d-addr">Vasastaden</span>
-        <span class="platskod-text" id="d-platskod">Platskod: 805</span>
       </div>
       <div class="close-x" id="d-close">✕</div>
     </div>
@@ -1259,6 +1263,7 @@
             cost: (cost !== null ? cost + ' kr' : '—'),
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng), true) : '—',
             slots: spot.slots ?? '—',
+            slotsReal: spot.slotsReal,
             platskod: spot.platskod,
             costLabel: 'för ' + formatHours(getDurationHours()),
             swatchColor: taxa.color, swatchShape: 'circle',
@@ -1302,6 +1307,7 @@
             cost: 'Gratis',
             dist: referencePoint ? formatDistance(haversineMeters(referencePoint.lat, referencePoint.lng, spot.lat, spot.lng), true) : '—',
             slots: spot.slots ?? '—',
+            slotsReal: spot.slotsReal,
             platskod: spot.platskod,
             costLabel: 'vald tid: ' + formatHours(getDurationHours()),
             swatchColor: free.color, swatchShape: 'triangle',
@@ -1895,6 +1901,7 @@
           openDetail({
             badge: s.badge, title: s.name, addr: '',
             cost: cost2, dist: formatDistance(closest.dist, !closest.isReal), slots: combinedSlots,
+            slotsReal: combinedIsReal,
             platskod: closest.platskod,
             costLabel: s.type === 'taxa' ? 'för ' + formatHours(h) : 'vald tid: ' + formatHours(h),
             swatchColor: s.color, swatchShape: s.type === 'free' ? 'triangle' : 'circle',
@@ -1983,6 +1990,32 @@
 
   // ---------- Detaljkort ----------
   const detailCard = document.getElementById('detail-card');
+  const DISTRICT_ABBR = { 'Norra': 'N:a', 'Södra': 'S:a', 'Västra': 'V:a', 'Östra': 'Ö:a' };
+  function abbreviateDistrict(name) {
+    const parts = name.split(' ');
+    if (parts.length > 1 && DISTRICT_ABBR[parts[0]]) return DISTRICT_ABBR[parts[0]] + ' ' + parts.slice(1).join(' ');
+    return name;
+  }
+  // Positionerar adressen: startar vid 50% av radens bredd som standard, eller direkt efter
+  // namnet om det är längre. Adressen kortas ALDRIG av - om den inte får plats även efter
+  // namnet, förkortas ett ev. väderstreck (Norra/Södra/Västra/Östra -> N:a/S:a/V:a/Ö:a) istället.
+  function positionDetailAddr() {
+    const titleRow = document.querySelector('#detail-card .title-row');
+    const h2 = document.getElementById('d-title');
+    const addr = document.getElementById('d-addr');
+    if (!titleRow || !h2 || !addr || !addr.textContent) return;
+    requestAnimationFrame(() => {
+      const rowWidth = titleRow.getBoundingClientRect().width;
+      const nameWidth = h2.getBoundingClientRect().width;
+      const gap = 10;
+      const available = rowWidth - nameWidth - gap;
+      if (addr.getBoundingClientRect().width > available) {
+        addr.textContent = abbreviateDistrict(addr.textContent);
+      }
+      const midPoint = rowWidth * 0.5;
+      addr.style.marginLeft = nameWidth < midPoint ? (midPoint - nameWidth) + 'px' : '10px';
+    });
+  }
   function openDetail(data) {
     document.getElementById('d-badge-text').textContent = data.badge;
     const swatch = document.getElementById('d-swatch');
@@ -1996,8 +2029,9 @@
     document.getElementById('d-cost').textContent = data.cost;
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
     document.getElementById('d-dist').textContent = data.dist;
-    document.getElementById('d-slots').textContent = data.slots;
+    document.getElementById('d-slots').textContent = (data.slots != null && !data.slotsReal ? '~' : '') + data.slots;
     document.getElementById('d-platskod').textContent = data.platskod ? 'Platskod: ' + data.platskod : '';
+    positionDetailAddr();
 
     const hitMenuBtn = document.getElementById('d-nav-hit-btn');
     const fromMenuBtn = document.getElementById('d-nav-from-btn');
