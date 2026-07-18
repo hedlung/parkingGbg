@@ -1394,6 +1394,16 @@
   let panelIsOpen = false;
   let topZCounter = 800; // delas med detaljkortet - senast öppnade (meny eller popup) hamnar alltid överst
 
+  function scrollNearestListToActive() {
+    const scroller = document.getElementById('nearest-list');
+    const activeRow = scroller.querySelector('.nearest-row.active');
+    if (!activeRow) {
+      scroller.scrollTop = 0;
+      return;
+    }
+    // Centrerar den valda raden i listans synliga yta
+    scroller.scrollTop = activeRow.offsetTop - (scroller.clientHeight / 2) + (activeRow.clientHeight / 2);
+  }
   function openPanel() {
     if (panelIsOpen) return;
     panelIsOpen = true;
@@ -1401,6 +1411,7 @@
     panelWrap.classList.add('open');
     scrim.classList.add('show');
     document.getElementById('panel').scrollTop = 0;
+    requestAnimationFrame(scrollNearestListToActive);
   }
   function closePanel() {
     if (!panelIsOpen) return;
