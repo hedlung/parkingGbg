@@ -554,16 +554,30 @@
   .nav-btn.disabled { opacity: 0.4; pointer-events: none; }
   .nav-menu {
     display: none; position: absolute; bottom: 46px; right: 0;
-    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow); overflow: hidden; min-width: 140px; z-index: 20;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: var(--shadow); overflow: visible; min-width: 190px; z-index: 20;
+    padding: 10px;
   }
   .nav-menu.show { display: block; }
-  .nav-menu a {
-    display: block; padding: 10px 14px; font-size: 13px; font-weight: 600;
-    color: var(--text); text-decoration: none; white-space: nowrap; text-align: center;
+  .nav-menu-header {
+    padding: 0 2px 9px 2px;
+    display: grid; grid-template-columns: auto 1fr; column-gap: 6px; row-gap: 2px;
   }
-  .nav-menu a:not(:last-child) { border-bottom: 1px solid var(--border); }
-  .nav-menu a:active { background: var(--panel); }
+  .nav-menu-header .k {
+    font-size: 10px; color: var(--text-dim); font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .nav-menu-header .v {
+    font-size: 11.5px; color: var(--text); font-weight: 700;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .nav-menu-links { display: flex; flex-direction: column; gap: 6px; }
+  .nav-menu-links a {
+    display: block; padding: 9px 14px; font-size: 13px; font-weight: 700;
+    color: white; text-decoration: none; white-space: nowrap; text-align: center;
+    background: var(--accent); border-radius: 8px;
+  }
+  .nav-menu-links a:active { opacity: 0.85; }
 
   /* ---- "Hitta mig" ---- */
   #locate-btn {
@@ -800,9 +814,15 @@
             Hit
           </button>
           <div class="nav-menu" id="d-nav-hit-menu">
-            <a id="d-hit-google" target="_blank" rel="noopener">Google Maps</a>
-            <a id="d-hit-apple" target="_blank" rel="noopener">Apple Kartor</a>
-            <a id="d-hit-waze" target="_blank" rel="noopener">Waze</a>
+            <div class="nav-menu-header">
+              <span class="k">Från</span><span class="v">Nuvarande plats</span>
+              <span class="k">Till</span><span class="v" id="d-hit-till">Vald parkering</span>
+            </div>
+            <div class="nav-menu-links">
+              <a id="d-hit-google" target="_blank" rel="noopener">Google Maps</a>
+              <a id="d-hit-apple" target="_blank" rel="noopener">Apple Kartor</a>
+              <a id="d-hit-waze" target="_blank" rel="noopener">Waze</a>
+            </div>
           </div>
         </div>
         <div class="nav-btn-wrap">
@@ -817,9 +837,15 @@
             Från
           </button>
           <div class="nav-menu" id="d-nav-from-menu">
-            <a id="d-from-google" target="_blank" rel="noopener">Google Maps</a>
-            <a id="d-from-apple" target="_blank" rel="noopener">Apple Kartor</a>
-            <a id="d-from-waze" target="_blank" rel="noopener">(Waze)</a>
+            <div class="nav-menu-header">
+              <span class="k">Från</span><span class="v" id="d-from-fran">Vald parkering</span>
+              <span class="k">Till</span><span class="v" id="d-from-till">Vald mål-adress</span>
+            </div>
+            <div class="nav-menu-links">
+              <a id="d-from-google" target="_blank" rel="noopener">Google Maps</a>
+              <a id="d-from-apple" target="_blank" rel="noopener">Apple Kartor</a>
+              <a id="d-from-waze" target="_blank" rel="noopener">(Waze)</a>
+            </div>
           </div>
         </div>
       </div>
@@ -1849,6 +1875,9 @@
     swatch.className = 'd-swatch' + (data.swatchShape ? ' ' + data.swatchShape : '');
     swatch.style.color = data.swatchColor || '';
     document.getElementById('d-title').textContent = data.title;
+    document.getElementById('d-hit-till').textContent = data.title;
+    document.getElementById('d-from-fran').textContent = data.title;
+    document.getElementById('d-from-till').textContent = searchInput.value.trim() || 'Vald mål-adress';
     document.getElementById('d-addr').textContent = data.addr;
     document.getElementById('d-cost').textContent = data.cost;
     document.getElementById('d-cost-label').textContent = data.costLabel || '';
