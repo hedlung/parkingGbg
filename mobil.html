@@ -544,6 +544,14 @@
   .cost-block .k, .dist-block .k { font-size: 10.5px; color: var(--text-dim); margin-top: 1px; }
   #detail-card.no-stats .platskod-text { display: none; }
   .nav-wrap { display: flex; gap: 8px; flex: 0 0 auto; margin-left: 14px; }
+  #nav-blur-overlay {
+    display: none; position: absolute; inset: 0; z-index: 860;
+    background: rgba(0,0,0,0.25);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  #nav-blur-overlay.show { display: block; }
+  .nav-btn-wrap.spotlight { position: relative; z-index: 880; }
+
   .nav-btn-wrap { position: relative; }
   .nav-btn {
     width: 78px; height: 38px; padding: 0; border-radius: 10px;
@@ -555,7 +563,7 @@
   .nav-menu {
     display: none; position: absolute; bottom: 46px; right: 0;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow); overflow: visible; min-width: 190px; z-index: 20;
+    box-shadow: var(--shadow); overflow: visible; min-width: 240px; z-index: 870;
     padding: 10px;
   }
   .nav-menu.show { display: block; }
@@ -570,7 +578,7 @@
   }
   .nav-menu-header .v {
     font-size: 11.5px; color: var(--text); font-weight: 700;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    white-space: normal; line-height: 1.3;
   }
   .nav-loc-dot {
     display: inline-block; width: 7px; height: 7px; border-radius: 50%;
@@ -608,9 +616,14 @@
 
   #scrim {
     position: absolute; inset: 0; background: rgba(0,0,0,0.3);
-    z-index: 580; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    z-index: 580; opacity: 0; pointer-events: none;
+    backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+    transition: opacity 0.5s cubic-bezier(0.45,0,0.2,1), backdrop-filter 0.5s cubic-bezier(0.45,0,0.2,1), -webkit-backdrop-filter 0.5s cubic-bezier(0.45,0,0.2,1);
   }
-  #scrim.show { opacity: 1; pointer-events: auto; }
+  #scrim.show {
+    opacity: 1; pointer-events: auto;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
 
   .leaflet-popup { display: none !important; }
 </style>
@@ -694,6 +707,8 @@
       </div>
     </div>
   </div>
+
+  <div id="nav-blur-overlay"></div>
 
   <div id="waze-warning-overlay">
     <div id="waze-warning-box">
@@ -1923,9 +1938,18 @@
     document.getElementById(btnId).addEventListener('click', (e) => {
       e.stopPropagation();
       const menu = document.getElementById(menuId);
+      const wrap = document.getElementById(btnId).closest('.nav-btn-wrap');
+      const overlay = document.getElementById('nav-blur-overlay');
       const isOpen = menu.classList.contains('show');
       document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
-      if (!isOpen) menu.classList.add('show');
+      document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
+      if (!isOpen) {
+        menu.classList.add('show');
+        wrap.classList.add('spotlight');
+        overlay.classList.add('show');
+      } else {
+        overlay.classList.remove('show');
+      }
     });
   }
   toggleNavMenu('d-nav-hit-btn', 'd-nav-hit-menu');
@@ -1997,12 +2021,20 @@
     }
   });
   document.querySelectorAll('.nav-menu').forEach(menu => {
-    menu.addEventListener('click', (e) => { if (e.target.tagName === 'A') menu.classList.remove('show'); });
+    menu.addEventListener('click', (e) => {
+      if (e.target.tagName === 'A') {
+        menu.classList.remove('show');
+        document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
+        document.getElementById('nav-blur-overlay').classList.remove('show');
+      }
+    });
   });
   document.addEventListener('click', (e) => {
     document.querySelectorAll('.nav-menu.show').forEach(menu => {
       if (!menu.contains(e.target) && e.target.id !== 'd-nav-hit-btn' && e.target.id !== 'd-nav-from-btn') {
         menu.classList.remove('show');
+        document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
+        document.getElementById('nav-blur-overlay').classList.remove('show');
       }
     });
   });
@@ -2012,6 +2044,8 @@
     selectedSpotKey = null;
     refreshOpenDetail = null;
     document.querySelectorAll('.nav-menu').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.nav-btn-wrap').forEach(w => w.classList.remove('spotlight'));
+    document.getElementById('nav-blur-overlay').classList.remove('show');
     renderNearestList();
   }
   document.getElementById('d-close').addEventListener('click', closeDetailCard);
