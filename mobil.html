@@ -667,8 +667,8 @@
   }
   #locate-confirm-popup.show { transform: scale(1) translate(0,0); opacity: 1; pointer-events: auto; }
   #locate-confirm-popup p { margin: 0 0 12px 0; font-size: 13.5px; line-height: 1.4; color: var(--text); font-weight: 400; }
-  .locate-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
-  .locate-confirm-actions button { padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; border: none; }
+  .locate-confirm-actions { display: flex; gap: 8px; }
+  .locate-confirm-actions button { flex: 1; padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 700; border: none; text-align: center; }
   #locate-confirm-cancel { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
   #locate-confirm-ok { background: var(--accent); color: white; }
   #locate-blur-overlay {
@@ -726,7 +726,7 @@
         </svg>
       </span>
       <div id="locate-confirm-popup">
-        <p>Välj nuvarande position?</p>
+        <p>Välj nuvarande position istället?</p>
         <div class="locate-confirm-actions">
           <button id="locate-confirm-cancel" type="button">Avbryt</button>
           <button id="locate-confirm-ok" type="button">OK</button>
