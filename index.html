@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Parkera i Göteborg</title>
+<title>Parkera i Göteborg - webb-version</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
@@ -298,9 +298,9 @@ const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
   attribution: '&copy; OpenStreetMap-bidragsgivare',
   maxZoom: 19
 });
-const voyagerLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+// CARTO kräver numera API-nyckel (?key=) på alla tiles under basemaps.cartocdn.com. Adressen följer CARTOs mejl exakt.
+const voyagerLayer = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_5epe_1_1ccbb62adfed46a591c3bd1e', {
   attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO',
-  subdomains: 'abcd',
   maxZoom: 20
 });
 
