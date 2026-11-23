@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Parkera i Göteborg</title>
+<!--! Parkera i Göteborg © 2026 Gustaf Hedlund. Alla rättigheter förbehållna. Kopiering, ändring eller spridning av kod, design eller texter utan skriftligt tillstånd är inte tillåten. -->
+<meta name="author" content="Gustaf Hedlund">
+<meta name="copyright" content="© 2026 Gustaf Hedlund. Alla rättigheter förbehållna. Id PGBG-GH-2026-7c41e9d2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 
 <!-- ---- PWA: gör att sidan kan installeras och köras som en riktig app ---- -->
@@ -16,7 +19,9 @@
 <link rel="icon" href="data:image/png;base64,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">
 <link id="manifest-link" rel="manifest">
 <style>
+  /*! Parkera i Göteborg © 2026 Gustaf Hedlund. Alla rättigheter förbehållna. */
   :root {
+    --pgbg-id: "PGBG-GH-2026-3be08f15";
     --bg: #10141a;
     --panel: #1a2029;
     --panel-2: #212936;
@@ -783,7 +788,7 @@
       </div>
 
       <div class="section-label" style="display:flex; align-items:center; justify-content:space-between;">
-        <span>Närmast dig</span>
+        <span>Närmast dig, välj en</span>
         <div id="nearest-info-btn" class="info-btn-round">i</div>
       </div>
       <div id="nearest-legend">
@@ -992,6 +997,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
+  /*! Parkera i Göteborg © 2026 Gustaf Hedlund. Alla rättigheter förbehållna. Kopiering eller ändring utan skriftligt tillstånd är inte tillåten. */
+  window.__pgbgBuild = 'PGBG-GH-2026-d94a6c70';
   // ---------- Internetuppkoppling: visa stor varning om anslutningen försvinner ----------
   const offlineOverlay = document.getElementById('offline-overlay');
   function updateOnlineStatus() {
@@ -1126,8 +1133,9 @@
   const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap-bidragsgivare', maxZoom: 19
   });
-  const voyagerLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO', subdomains: 'abcd', maxZoom: 20
+  // v3.4: CARTO kräver numera API-nyckel (?key=) på alla tiles under basemaps.cartocdn.com. Adressen följer CARTOs mejl exakt.
+  const voyagerLayer = L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_5epe_1_1ccbb62adfed46a591c3bd1e', {
+    attribution: '&copy; OpenStreetMap-bidragsgivare &copy; CARTO', maxZoom: 20
   });
   osmLayer.addTo(map);
 
@@ -1708,6 +1716,8 @@
   document.getElementById('duration-slider').addEventListener('input', (e) => {
     document.getElementById('duration-val').textContent = formatHours(getDurationHours());
     updateSliderFill(e.target);
+    // v3.3: prisslidern släpps och hamnar alltid i topp när tiden ändras, så att närmaste parkering visas oavsett pris
+    maxPriceThreshold = null;
     renderTaxaList();
     if (refreshOpenDetail) refreshOpenDetail();
   });
