@@ -1597,7 +1597,7 @@
       .filter(x => x.cost !== null);
 
     const maxCost = eligible.length > 0 ? Math.max(...eligible.map(x => x.cost)) : 0;
-    const sliderMax = Math.max(5, Math.ceil(maxCost / 5) * 5); // rundar upp till närmaste 5:a, minst 5
+    const sliderMax = Math.max(1, maxCost); // exakt det dyraste beloppet (computeCost ger redan heltal), minst 1 så att slidern aldrig blir noll-bred
 
     if (maxPriceThreshold === null) {
       maxPriceThreshold = sliderMax; // första gången: visa allt
